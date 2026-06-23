@@ -27,59 +27,197 @@ execute:
 
 ```{r setup}
 #| include: false
-# Paquetes que iremos usando a lo largo del informe
 library(tidyverse)
+library(knitr)
+
+datos   <- readRDS("data/processed/eph_imputada.rds")   # base analítica (imputada)
+flujo   <- readRDS("data/processed/diag_flujo.rds")      # flujo de casos
+imp_cmp <- readRDS("data/processed/diag_imputacion.rds") # comparación de imputación
 ```
 
 # Introducción
 
-*(Presentación del problema y de los objetivos del trabajo.)*
+El mercado laboral argentino se caracteriza por una marcada **heterogeneidad
+salarial** y una elevada **informalidad** (empleo no registrado). Comprender qué
+factores explican el salario de las personas y qué determina la probabilidad de
+trabajar en la informalidad es una pregunta central de la economía laboral.
+
+Este trabajo aborda ambas preguntas integrando las técnicas de pre-procesamiento,
+análisis exploratorio y modelado vistas en la asignatura, sobre **microdatos
+reales** de la Encuesta Permanente de Hogares (EPH). Se ajustan dos modelos
+complementarios:
+
+- un **modelo de regresión lineal** para el (log) salario horario, en el marco
+  de la **ecuación de Mincer**, y
+- un **modelo de regresión logística** para la probabilidad de informalidad.
+
+La condición de **informalidad** cumple un doble rol: es la **variable respuesta**
+del modelo logístico y, a la vez, una **predictora** del modelo de salarios (se
+espera que, a igualdad de características, los trabajadores informales perciban
+menores salarios).
 
 # Descripción general del conjunto de datos
 
 ## Fuente
 
-*(Encuesta Permanente de Hogares — INDEC. Paquete `eph`.)*
+Los datos provienen de la **Encuesta Permanente de Hogares (EPH)** que elabora el
+**INDEC**, organismo oficial de estadística de Argentina. La EPH es una encuesta
+continua que releva 31 aglomerados urbanos y publica microdatos abiertos y
+anonimizados con periodicidad trimestral.
+
+Se utiliza la **base de individuos del 4.º trimestre de 2025** (último período
+disponible al momento del trabajo), descargada con el paquete de R
+[`eph`](https://holatam.github.io/eph/). La base original contiene 43.703 personas
+y 235 variables.
 
 ## Objetivos del estudio
 
-1. Modelar el (log) salario horario (regresión lineal — ecuación de Mincer).
-2. Modelar la probabilidad de informalidad laboral (regresión logística).
+1. **Modelar el salario horario** de las personas asalariadas en función de su
+   capital humano y características, cuantificando los retornos a la educación, la
+   brecha salarial de género y la penalización salarial asociada a la
+   informalidad (regresión lineal).
+2. **Modelar la probabilidad de informalidad laboral** en función de las mismas
+   características, y evaluar la capacidad predictiva del modelo (regresión
+   logística).
 
 ## Definición de las variables
 
-*(Tabla con respuestas y predictoras, su tipo y su definición.)*
+A partir de la base original se construyó una base analítica restringida a la
+población de interés (ver sección de pre-procesamiento). Las variables finales
+son:
+
+```{r tabla-variables}
+#| echo: false
+tribble(
+  ~Variable, ~Tipo, ~Rol, ~Definición,
+  "salario_horario", "Cuantitativa continua", "Respuesta (lineal)", "Ingreso de la ocupación principal por hora: P21 / (horas × 4,33)",
+  "log_salario", "Cuantitativa continua", "Respuesta (lineal)", "Logaritmo natural del salario horario",
+  "informal", "Categórica binaria", "Respuesta (logística) / Predictora (lineal)", "Empleo no registrado (sin descuento jubilatorio)",
+  "nivel_ed", "Categórica (6 niveles)", "Predictora", "Máximo nivel educativo alcanzado",
+  "edad", "Cuantitativa discreta", "Predictora", "Edad en años (se incluye también su término cuadrático)",
+  "sexo", "Categórica binaria", "Predictora", "Sexo registrado (Varón / Mujer)",
+  "tamano_estab", "Categórica (4 niveles)", "Predictora", "Tamaño del establecimiento (Chico/Mediano/Grande/Casa particular)",
+  "region", "Categórica (6 niveles)", "Predictora", "Región del país",
+  "sector", "Categórica (12 ramas)", "Exploratoria", "Rama de actividad (clasificación CAES-EPH)",
+  "horas", "Cuantitativa", "Auxiliar", "Horas semanales trabajadas (define el salario horario)"
+) |>
+  kable(caption = "Definición de las variables de la base analítica.")
+```
 
 # Pre-procesamiento
 
+La población objetivo del estudio son las personas **asalariadas ocupadas de 18 a
+65 años**. La elección se justifica porque el salario horario solo está definido
+para quienes perciben una remuneración por su trabajo, y la informalidad (medida
+por el descuento jubilatorio) es un concepto propio del empleo asalariado. El
+rango etario excluye a menores y a personas en edad jubilatoria, estándar en las
+ecuaciones de salarios.
+
 ## Tratamiento de datos faltantes
+
+El pre-procesamiento más delicado fue el de los **códigos especiales** de la EPH,
+que el software no reconoce automáticamente como faltantes (son números reales: un
+`999` de horas o un `-9` de ingreso contaminarían el análisis si no se tratan).
+Se los trató **distinguiendo su significado**, que no es el mismo en todos los
+casos.
+
+### Ingreso: "no responde" (−9) ≠ "no percibió ingreso" (0)
+
+Una distinción clave es que el código `-9` (Ns/Nr: la persona **no quiso o no supo
+responder** su ingreso) **no es equivalente** al `0` (la persona **declara no haber
+percibido ingreso** en el período de referencia):
+
+- **`P21 == -9` (no respuesta):** es un **dato faltante genuino**. Al comparar las
+  variables observables de quienes responden y quienes no, resultan casi idénticas
+  (edad, sexo, nivel educativo, horas), por lo que no se observa dependencia con
+  variables observadas. Sin embargo, **no puede descartarse un mecanismo MNAR**
+  (los individuos de mayores ingresos tienden a no declarar), lo que se discute
+  como limitación. Como el ingreso es la **variable respuesta**, no corresponde
+  imputarlo: se trata mediante **análisis de casos completos (CCA)**.
+- **`P21 == 0` (sin ingreso):** **no es un faltante.** Son ocupados que declararon
+  no percibir ingreso laboral en el período (mayormente con escasa antigüedad en
+  el empleo). Constituyen **otra población**, ajena a una ecuación de salarios
+  (además, el salario horario sería 0, indefinido en logaritmo), por lo que se los
+  **excluye**.
+
+### Flujo de casos
+
+El siguiente cuadro resume cuántas observaciones se descartan en cada etapa y por
+qué motivo:
+
+```{r flujo-casos}
+#| echo: false
+flujo |>
+  mutate(n = format(n, big.mark = ".", decimal.mark = ",")) |>
+  kable(col.names = c("Etapa", "n"), align = c("l", "r"),
+        caption = "Flujo de casos hasta la base analítica final.")
+```
+
+La base analítica final cuenta con **`r format(nrow(datos), big.mark=".")`
+asalariados**, sin valores faltantes en ninguna variable salvo el tamaño del
+establecimiento, que se imputa (ver más abajo).
+
+### Tamaño del establecimiento: códigos, recupero e imputación
+
+El tamaño del establecimiento (`PP04C`) es un predictor relevante (existe una
+**prima salarial por tamaño de empresa** y se asocia con la formalidad), pero
+presenta no-respuesta. Su tratamiento requirió analizar el codebook oficial:
+
+- El código `99` (Ns/Nr) aparecía en el 14,8% de los casos, pero la EPH incluye
+  una **pregunta de recupero** (`PP04C99`) que recoge un tramo grueso (hasta 5 /
+  6–40 / más de 40) para quienes no precisaron el tramo fino. Tras el recupero, la
+  **no-respuesta real se reduce al 5,7%** (622 casos).
+- El código `0` corresponde **exclusivamente a trabajadores de servicio
+  doméstico** (casas particulares), para quienes no aplica el concepto de
+  establecimiento. No es un faltante: se los clasifica como categoría propia
+  (**"Casa particular"**).
+
+Como los 622 faltantes son **todos no-domésticos**, la imputación es un problema
+de tres niveles (Chico/Mediano/Grande). Siguiendo la recomendación de comparar
+métodos, se imputó con **KNN (k = 5)**, **missForest** e **imputación múltiple
+MICE (m = 5)**, usando como donantes las variables completas (incluida la
+respuesta `log_salario`, recomendado para preservar la relación con el predictor).
+Las distribuciones imputadas resultan **estables entre métodos** y consistentes
+con la distribución observada:
+
+```{r comparacion-imputacion}
+#| echo: false
+imp_cmp |>
+  kable(caption = "Distribución (%) del tamaño del establecimiento: observada vs. imputada por método.")
+```
+
+Dada esta estabilidad, se adopta la imputación por **KNN** como base para el
+análisis. (Nota: al llegar a la validación cruzada, la imputación se reajusta
+dentro del conjunto de entrenamiento para evitar fuga de información.)
 
 ## Recodificación de categorías
 
+*(En desarrollo.)*
+
 ## Creación de variables derivadas
+
+*(En desarrollo.)*
 
 ## Transformaciones y cambios de escala
 
+*(En desarrollo.)*
+
 ## Detección y tratamiento de valores atípicos
+
+*(En desarrollo.)*
 
 # Análisis exploratorio
 
+*(En desarrollo.)*
+
 # Modelo de regresión lineal
 
-## Especificación y ajuste inicial
-
-## Selección de variables
-
-## Evaluación de supuestos y diagnóstico
-
-## Modelo final e interpretación
+*(En desarrollo.)*
 
 # Modelo de regresión logística
 
-## Especificación y ajuste
-
-## Modelo final e interpretación
-
-## Evaluación de la capacidad predictiva
+*(En desarrollo.)*
 
 # Síntesis y limitaciones
+
+*(En desarrollo.)*

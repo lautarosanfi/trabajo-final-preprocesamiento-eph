@@ -77,6 +77,16 @@ dir.create("data/processed", showWarnings = FALSE, recursive = TRUE)
 saveRDS(base, "data/processed/eph_procesada.rds")
 
 # --- 4. Auditoría del flujo de casos y faltantes ------------------------------
+flujo <- tibble::tibble(
+  Etapa = c("Asalariados ocupados 18-65",
+            "(-) Ingreso Ns/Nr (P21 = -9) -> NA, CCA",
+            "(-) Sin ingreso (P21 = 0) -> excluidos",
+            "(-) Horas invalidas (999/0/NA) -> CCA",
+            "Base analitica final"),
+  n = c(n0, -n_ingreso_nr, -n_ingreso_cero, -n_horas_inval, nrow(base))
+)
+saveRDS(flujo, "data/processed/diag_flujo.rds")
+
 cat("================ FLUJO DE CASOS ================\n")
 cat("Asalariados ocupados 18-65 (inicio):", n0, "\n")
 cat("  (-) Ingreso Ns/Nr (P21=-9), NA->CCA :", n_ingreso_nr, "\n")
