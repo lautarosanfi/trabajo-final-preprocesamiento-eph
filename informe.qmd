@@ -690,6 +690,47 @@ las predictoras y descartan únicamente la interacción. Se adopta, entonces, el
 **modelo aditivo de Mincer** como modelo de trabajo, sobre el cual se evaluarán
 los supuestos antes de su interpretación final.
 
+### Regresión penalizada (Ridge y Lasso)
+
+Como **método alternativo de ajuste** (U3), se evaluó la **regresión penalizada**,
+útil ante multicolinealidad fuerte o exceso de predictoras. Se ajustaron **Ridge**
+($\alpha = 0$) y **Lasso** ($\alpha = 1$) eligiendo el parámetro de penalización
+$\lambda$ por validación cruzada:
+
+```{r penalizada}
+#| echo: false
+library(glmnet)
+Xp <- model.matrix(formula(m_base), datos)[, -1]
+yp <- datos$log_salario
+set.seed(2026)
+cvl <- cv.glmnet(Xp, yp, alpha = 1)   # Lasso
+cvr <- cv.glmnet(Xp, yp, alpha = 0)   # Ridge
+nz  <- sum(as.matrix(coef(cvl, s = "lambda.min"))[-1, 1] != 0)
+set.seed(2026); fk <- sample(rep(1:10, length.out = nrow(datos)))
+mse_ols <- mean(sapply(1:10, function(i){
+  mm <- lm(formula(m_base), datos[fk != i, ])
+  mean((datos$log_salario[fk == i] - predict(mm, datos[fk == i, ]))^2)}))
+data.frame(
+  Método = c("MCO (OLS)", "Ridge", "Lasso"),
+  `λ (CV)` = c("—", round(cvr$lambda.min, 4), round(cvl$lambda.min, 5)),
+  `Variables retenidas` = c(ncol(Xp), ncol(Xp), nz),
+  `MSE (validación cruzada)` = round(c(mse_ols,
+      cvr$cvm[cvr$lambda == cvr$lambda.min],
+      cvl$cvm[cvl$lambda == cvl$lambda.min]), 4),
+  check.names = FALSE) |>
+  kable(caption = "Regresión penalizada vs. MCO: penalización óptima, variables retenidas y error de predicción.")
+```
+
+El $\lambda$ óptimo de Lasso es prácticamente nulo y **retiene las 17 variables**
+(no descarta ninguna), mientras que el error de predicción por validación cruzada
+es **equivalente** al de MCO (Ridge incluso resulta levemente peor). La
+penalización, por lo tanto, **no aporta**: tal como anticipaba el diagnóstico
+($n \gg p$, sin multicolinealidad relevante), no hay varianza que reducir ni
+variables que descartar. Sumado a que los coeficientes penalizados **no son
+interpretables** en términos del problema, se mantiene el **modelo MCO** como
+modelo final. (La regresión penalizada sería preferible en un escenario con muchas
+predictoras correlacionadas o con foco exclusivo en la predicción.)
+
 ## Evaluación de supuestos y diagnóstico
 
 La validez de la inferencia depende de los supuestos sobre los errores. Se los
