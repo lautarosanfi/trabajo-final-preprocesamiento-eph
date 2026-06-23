@@ -1097,4 +1097,71 @@ informales.
 
 # Síntesis y limitaciones
 
-*(En desarrollo.)*
+## Síntesis de resultados
+
+A partir de los microdatos de la EPH (4.º trimestre de 2025) y una base analítica
+de **10.863 asalariados** de 18 a 65 años, se ajustaron dos modelos
+complementarios.
+
+El **modelo de regresión lineal** (ecuación de Mincer para el log-salario horario,
+$R^2$ ajustado ≈ 0,39) confirma:
+
+- **Retornos crecientes a la educación**: completar el secundario se asocia a un
+  salario ~22% mayor y el nivel superior completo a uno ~78% mayor.
+- Un **perfil de edad cóncavo**, con máximo cerca de los 57 años.
+- Una **penalización por informalidad** de ~26%, el efecto individual más grande.
+- Una **prima por tamaño** del establecimiento y **diferencias regionales**
+  marcadas (Patagonia ~27% por encima del GBA; NOA, NEA y Cuyo por debajo).
+- Una **brecha de género** de ~6,4% que, si bien parecía nula a nivel marginal,
+  emerge al controlar por educación (las mujeres están más calificadas) y resulta
+  significativa.
+
+El **modelo de regresión logística** para la informalidad (AUC ≈ 0,86, validado
+por validación cruzada) muestra:
+
+- El **tamaño del establecimiento** es el determinante dominante: en los grandes,
+  la chance de informalidad es ~94% menor que en los chicos.
+- La **educación** reduce fuertemente la informalidad (~81% menos de chance con
+  nivel superior completo).
+- El **sexo no resulta significativo**: a igualdad de características, varones y
+  mujeres tienen una probabilidad de informalidad similar.
+
+En conjunto, **educación y tamaño del establecimiento** son las palancas centrales
+de ambos fenómenos. Resulta llamativa la **asimetría del sexo**: influye en el
+*nivel salarial* pero no en la *probabilidad de informalidad*. Y la informalidad
+aparece a la vez como un fuerte **determinante** de menores salarios y como un
+resultado **predecible** a partir de las características del empleo.
+
+## Limitaciones
+
+- **Naturaleza transversal (no causal).** Los datos son un corte de un trimestre:
+  las estimaciones reflejan **asociaciones**, no efectos causales. Pueden existir
+  variables omitidas (habilidad no observada, experiencia efectiva —aproximada por
+  la edad—, características de la ocupación) que sesguen los coeficientes.
+- **No-respuesta de ingresos (posible MNAR).** El 18% de los asalariados no
+  declaró su ingreso y se trató por casos completos. Si quienes más ganan tienden
+  a no responder, el modelo de salarios podría subrepresentarlos y sesgar los
+  resultados. No se aplicaron correcciones avanzadas (ponderadores de ingreso de
+  INDEC, modelos de selección tipo Heckman).
+- **Selección muestral.** Se analizó únicamente a los **asalariados ocupados**; la
+  ecuación de salarios podría sufrir sesgo de selección (quiénes trabajan y
+  declaran ingreso no son una muestra aleatoria de la población).
+- **Diseño muestral complejo.** La EPH se basa en un muestreo por conglomerados
+  con ponderadores; al no incorporarlos, los errores estándar podrían estar algo
+  subestimados y las estimaciones deben leerse como propias de la muestra más que
+  como estimaciones poblacionales precisas.
+- **Medición de la informalidad.** Se la definió por la ausencia de descuento
+  jubilatorio (empleo no registrado); existen otras definiciones (informalidad
+  productiva, por ejemplo) que podrían arrojar resultados distintos.
+- **Variabilidad no explicada.** El modelo de salarios explica ~39% de la
+  variabilidad; gran parte queda sin explicar por factores no observados. Además,
+  se conservaron salarios horarios atípicos (originados en pocas horas declaradas)
+  que, aunque no resultaron influyentes, agregan ruido.
+- **Imputación.** El tamaño del establecimiento se imputó para el 5,7% de los
+  casos; si bien los métodos coincidieron y la validación cruzada lo confirmó,
+  sigue siendo una estimación basada en un modelo.
+
+En síntesis, el trabajo integra el flujo completo de pre-procesamiento, análisis
+exploratorio y modelado, arribando a modelos interpretables y predictivamente
+adecuados, cuyas conclusiones deben leerse a la luz de las limitaciones
+señaladas.
