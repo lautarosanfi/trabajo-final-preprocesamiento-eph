@@ -13,9 +13,9 @@ library(eph)
 library(tidyverse)
 
 # --- Parámetros ---------------------------------------------------------------
-# OJO: verificar el trimestre más reciente disponible al momento de ejecutar.
+# Último trimestre disponible al 2026-06-23 (el 1T2026 aún no fue publicado).
 ANIO      <- 2025
-TRIMESTRE <- 3
+TRIMESTRE <- 4
 
 # --- Descarga de la base de individuos ---------------------------------------
 individual <- get_microdata(
