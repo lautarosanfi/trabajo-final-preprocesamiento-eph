@@ -1,0 +1,85 @@
+---
+title: "Determinantes del salario y de la informalidad laboral en Argentina"
+subtitle: "Trabajo Final — Pre-procesamiento de datos"
+author: "Lautaro Sanfilippo"
+date: today
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-title: "Contenidos"
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    code-summary: "Ver código"
+    fig-align: center
+    fig-width: 8
+    fig-height: 5
+    embed-resources: true
+    smooth-scroll: true
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+```{r setup}
+#| include: false
+# Paquetes que iremos usando a lo largo del informe
+library(tidyverse)
+```
+
+# Introducción
+
+*(Presentación del problema y de los objetivos del trabajo.)*
+
+# Descripción general del conjunto de datos
+
+## Fuente
+
+*(Encuesta Permanente de Hogares — INDEC. Paquete `eph`.)*
+
+## Objetivos del estudio
+
+1. Modelar el (log) salario horario (regresión lineal — ecuación de Mincer).
+2. Modelar la probabilidad de informalidad laboral (regresión logística).
+
+## Definición de las variables
+
+*(Tabla con respuestas y predictoras, su tipo y su definición.)*
+
+# Pre-procesamiento
+
+## Tratamiento de datos faltantes
+
+## Recodificación de categorías
+
+## Creación de variables derivadas
+
+## Transformaciones y cambios de escala
+
+## Detección y tratamiento de valores atípicos
+
+# Análisis exploratorio
+
+# Modelo de regresión lineal
+
+## Especificación y ajuste inicial
+
+## Selección de variables
+
+## Evaluación de supuestos y diagnóstico
+
+## Modelo final e interpretación
+
+# Modelo de regresión logística
+
+## Especificación y ajuste
+
+## Modelo final e interpretación
+
+## Evaluación de la capacidad predictiva
+
+# Síntesis y limitaciones

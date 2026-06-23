@@ -1,0 +1,22 @@
+# --- R ---
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# --- Quarto ---
+/.quarto/
+*_files/
+*_cache/
+/_site/
+informe.html
+
+# --- Datos crudos (se regeneran con R/01_descarga_datos.R) ---
+data/raw/*
+!data/raw/.gitkeep
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
