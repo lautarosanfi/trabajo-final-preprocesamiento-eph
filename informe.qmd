@@ -482,12 +482,20 @@ modelado.
 Se plantea un modelo de **regresión lineal múltiple** para el logaritmo del
 salario horario, en el marco de la **ecuación de Mincer**:
 
-$$\log(\text{salario}) = \beta_0 + \beta_1\,\text{edad} + \beta_2\,\text{edad}^2 +
-\boldsymbol{\gamma}'\text{educación} + \delta\,\text{mujer} +
-\theta\,\text{informal} + \boldsymbol{\tau}'\text{tamaño} +
-\boldsymbol{\rho}'\text{región} + \varepsilon$$
+$$
+\log(\text{salario}_i) = \beta_0 + \beta_1\,\text{edad}_i + \beta_2\,\text{edad}_i^2
++ \beta_3\,\text{mujer}_i + \beta_4\,\text{informal}_i
++ \sum_k \gamma_k\,\text{educ}_{ki}
++ \sum_j \tau_j\,\text{tam}_{ji}
++ \sum_r \rho_r\,\text{reg}_{ri} + \varepsilon_i
+$$
 
-Las categorías de referencia son: *Primario incompleto o menos* (educación),
+donde `mujer` e `informal` son **variables indicadoras** (valen 1 o 0). Las
+variables categóricas con más de dos categorías —educación, tamaño y región—
+ingresan como **conjuntos de indicadoras (dummies)**: cada categoría aporta su
+propio coeficiente, que mide la diferencia respecto de la **categoría de
+referencia** (por eso las sumatorias recorren solo las categorías distintas de la
+de referencia). Las referencias son: *Primario incompleto o menos* (educación),
 *Varón* (sexo), *Formal* (registro), *Chico (hasta 5)* (tamaño) y *GBA* (región).
 
 ```{r lineal-base}
@@ -505,17 +513,76 @@ data.frame(`Estimación` = round(co[,1], 4), `Error est.` = round(co[,2], 4),
                           summary(m_base)$r.squared, summary(m_base)$adj.r.squared))
 ```
 
-Todos los coeficientes presentan el **signo esperado** y son, en su mayoría,
-altamente significativos: los salarios crecen con la educación, siguen un perfil
-cóncavo en la edad, son menores para mujeres y para informales, y aumentan con el
-tamaño del establecimiento. El $R^2$ ronda 0,39, un valor habitual para
-ecuaciones de salarios con datos de corte transversal en ciencias sociales. La
-interpretación cuantitativa detallada se presenta una vez validado el modelo.
+Todos los coeficientes presentan el **signo esperado**. Como la respuesta está en
+logaritmos, cada coeficiente se interpreta —de manera aproximada— como el
+**cambio porcentual** del salario asociado a esa característica, **manteniendo
+constantes las demás**. Lectura preliminar:
 
-## Selección de variables
+- **Educación** (ref.: *Primario incompleto o menos*): el salario crece de forma
+  monótona con el nivel. *Secundario completo* se asocia a ~20 log-puntos más, y
+  *Superior completo* a ~57 log-puntos más (≈ **+78%** al exponenciar): son los
+  **retornos a la educación**, el efecto más fuerte junto con la informalidad.
+- **Edad**: coeficiente positivo en `edad` y negativo en `edad²` ⇒ perfil
+  **cóncavo** (el salario sube, alcanza un máximo cerca de los 57 años y luego
+  decae), consistente con la verificación previa.
+- **Sexo** (ref.: *Varón*): el coeficiente de *Mujer* es negativo y significativo
+  (≈ −6,6 log-puntos, ≈ −6,4%): una **brecha de género** a igualdad de las demás
+  características. Su relación con lo visto en el AED se analiza en detalle en la
+  sección siguiente.
+- **Informalidad** (ref.: *Formal*): los informales ganan ~30 log-puntos menos
+  (≈ **−26%**), la mayor penalización individual del modelo.
+- **Tamaño** (ref.: *Chico*): **prima por tamaño** (Mediano +10%, Grande +18%); el
+  servicio doméstico ("Casa particular") queda algo por debajo de los chicos.
+- **Región** (ref.: *GBA*): NOA, NEA y Cuyo pagan menos que el GBA; la
+  **Patagonia** paga más (~+24 log-puntos).
 
-El análisis exploratorio sugería una posible **interacción educación × sexo**
-(la brecha parecía visible dentro de cada nivel). Se la contrasta formalmente:
+El $R^2$ ronda 0,39, un valor habitual para ecuaciones de salarios con datos de
+corte transversal en ciencias sociales (U2). La interpretación cuantitativa
+precisa, con intervalos de confianza, se presenta una vez validados los supuestos.
+
+## La brecha de género: del dato marginal al condicional
+
+En el análisis exploratorio surgía una aparente paradoja: la brecha de género era
+**casi nula a nivel marginal**, pero se hacía **visible al separar por nivel
+educativo**. ¿Es contradictorio que ahora el sexo sí sea significativo? No, y el
+modelo permite entender por qué. La siguiente tabla muestra cómo cambia el
+coeficiente de *Mujer* a medida que se agregan controles:
+
+```{r sexo-secuencia}
+#| echo: false
+mods <- list(
+  "Solo sexo (marginal)" = lm(log_salario ~ sexo, datos),
+  "+ educación"          = lm(log_salario ~ sexo + nivel_ed, datos),
+  "+ edad"               = lm(log_salario ~ sexo + nivel_ed + edad + I(edad^2), datos),
+  "Modelo completo"      = m_base)
+do.call(rbind, lapply(names(mods), function(nm){
+  co <- summary(mods[[nm]])$coefficients["sexoMujer", ]
+  data.frame(`Especificación` = nm, `Coef. Mujer` = round(co[1], 4),
+             `Error est.` = round(co[2], 4), `p-valor` = signif(co[4], 2),
+             `Efecto aprox.` = paste0(round(100*(exp(co[1]) - 1), 1), "%"),
+             check.names = FALSE)
+})) |> kable(caption = "Coeficiente de 'Mujer' según los controles incluidos.")
+```
+
+Sin controles, la brecha es de apenas ~3%. **Al agregar la educación, se
+triplica** (~−12%): como las mujeres de la muestra están más educadas (48% con
+estudios superiores frente a 32% de los varones), su mayor educación
+**enmascaraba** la brecha a nivel agregado. Es un caso de **efecto de supresión**:
+una variable (educación), correlacionada *positivamente* tanto con ser mujer como
+con el salario, ocultaba el verdadero efecto del sexo; al controlarla, la brecha
+emerge.
+
+Esto **resuelve la aparente contradicción**: lo que veíamos en el gráfico
+multivariado no era un artefacto ajeno al género, sino precisamente la **brecha
+condicional** (a igual educación, los varones ganan más). En el modelo completo,
+al sumar informalidad, tamaño y región —donde varones y mujeres se distribuyen de
+forma distinta— la brecha se modera a ~−6,6%, pero **sigue siendo significativa**:
+es la parte de la diferencia salarial que **no** explican las características
+observadas.
+
+Queda una pregunta **distinta**: ¿la brecha *varía* entre niveles educativos? Eso
+es lo que evalúa el término de interacción educación × sexo (no si existe la
+brecha, sino si su tamaño cambia según el nivel):
 
 ```{r lineal-interac}
 #| echo: false
@@ -523,43 +590,66 @@ m_int <- update(m_base, . ~ . + nivel_ed:sexo)
 anova(m_base, m_int) |>
   as.data.frame() |>
   mutate(Modelo = c("Aditivo", "+ interacción educación×sexo"), .before = 1) |>
-  kable(digits = c(0,0,0,0,3,3),
-        caption = "Test de la interacción educación × sexo.")
+  kable(digits = c(0,0,0,0,3,3), caption = "Test de la interacción educación × sexo.")
 ```
 
-La interacción **no es significativa** (p ≈ 0,52): la brecha de género existe,
-pero **no varía** entre niveles educativos, por lo que el modelo aditivo es
-suficiente y preferible por parsimonia.
+La interacción **no es significativa** (p ≈ 0,52): la brecha **existe pero es
+aproximadamente constante** entre niveles educativos. (En el AED las diferencias
+por nivel parecían oscilar entre 7% y 19%, pero esa variación no es
+estadísticamente significativa.) Por eso una única brecha de género —el modelo
+aditivo— alcanza.
 
-A continuación se aplican procedimientos automáticos de selección (stepwise en
-ambas direcciones), con los criterios **AIC** y **BIC**, partiendo de un modelo
-que incluye la interacción como candidata:
+## Selección de variables
 
-```{r lineal-seleccion}
-#| echo: false
+Se aplican procedimientos de selección **paso a paso (stepwise) en ambas
+direcciones**, con los criterios **AIC** y **BIC**. El procedimiento **parte del
+modelo completo** (con la interacción) y, en cada paso, evalúa tanto **quitar**
+como **agregar** cada término, quedándose con el movimiento que más mejora el
+criterio; se detiene cuando ningún cambio lo mejora. De este modo chequea, en los
+hechos, si **cada variable aporta**. La traza muestra los pasos:
+
+```{r stepwise-trace}
+#| code-fold: true
 n <- nrow(datos)
 full <- lm(log_salario ~ nivel_ed*sexo + edad + I(edad^2) + informal +
              tamano_estab + region, data = datos)
-sel_aic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = 2)
-sel_bic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = log(n))
+sel_aic <- MASS::stepAIC(full, direction = "both", k = 2)                       # AIC
+sel_bic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = log(n))   # BIC
+```
 
+En el primer paso, el único movimiento que mejora el AIC es **quitar la
+interacción**; en el segundo, ni eliminar ninguna variable ni volver a agregar la
+interacción mejora el criterio, y el algoritmo se detiene. Como verificación
+complementaria, al **quitar cada término de a uno** del modelo aditivo, todos
+empeoran significativamente el ajuste, lo que confirma que **ninguna variable es
+prescindible**:
+
+```{r drop1-tabla}
+#| echo: false
+drop1(m_base, test = "F") |> as.data.frame() |>
+  tibble::rownames_to_column("Término") |>
+  filter(Término != "<none>") |>
+  transmute(Término, `g.l.` = Df, `Suma de cuad.` = round(`Sum of Sq`, 1),
+            `F` = round(`F value`, 1), `p-valor` = signif(`Pr(>F)`, 2)) |>
+  kable(caption = "Eliminación de un término por vez (drop1) sobre el modelo aditivo.")
+```
+
+```{r lineal-comparacion}
+#| echo: false
 comp <- function(m, nom) data.frame(
   Modelo = nom, `n° coef.` = length(coef(m)),
   `R² aj.` = round(summary(m)$adj.r.squared, 4),
   AIC = round(AIC(m), 1), BIC = round(BIC(m), 1),
   CME = round(sum(resid(m)^2)/df.residual(m), 4), check.names = FALSE)
-rbind(comp(m_base, "Aditivo (base)"),
-      comp(m_int,  "Con interacción"),
-      comp(sel_aic, "Selección AIC"),
-      comp(sel_bic, "Selección BIC")) |>
+rbind(comp(m_base, "Aditivo (base)"), comp(m_int, "Con interacción"),
+      comp(sel_aic, "Selección AIC"), comp(sel_bic, "Selección BIC")) |>
   kable(caption = "Comparación de modelos por distintos criterios.")
 ```
 
-Tanto **AIC como BIC seleccionan el mismo modelo aditivo base** (retienen todas
-las predictoras y descartan la interacción), que además minimiza ambos criterios
-y el CME. Se adopta, entonces, el **modelo aditivo de Mincer** como modelo de
-trabajo, sobre el cual se evaluarán los supuestos antes de su interpretación
-final.
+Tanto **AIC como BIC seleccionan el mismo modelo aditivo base**: retienen todas
+las predictoras y descartan únicamente la interacción. Se adopta, entonces, el
+**modelo aditivo de Mincer** como modelo de trabajo, sobre el cual se evaluarán
+los supuestos antes de su interpretación final.
 
 ## Evaluación de supuestos y diagnóstico
 
