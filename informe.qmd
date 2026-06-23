@@ -658,7 +658,125 @@ los supuestos antes de su interpretación final.
 
 ## Evaluación de supuestos y diagnóstico
 
-*(En desarrollo.)*
+La validez de la inferencia depende de los supuestos sobre los errores. Se los
+evalúa a partir de los **residuos** del modelo aditivo.
+
+**Independencia.** Los datos son un **corte transversal** (un único trimestre),
+por lo que no hay estructura temporal que genere autocorrelación. Sí cabe señalar
+que la EPH tiene un diseño muestral por conglomerados que aquí no se modela (se
+retoma en las limitaciones).
+
+**Linealidad y homocedasticidad.** El gráfico de residuos vs. valores ajustados no
+muestra un patrón de curvatura (la linealidad, ayudada por el log y `edad²`, es
+razonable), pero sí cierta variación no constante:
+
+```{r diag-resid}
+#| echo: false
+#| fig-cap: "Residuos vs. valores ajustados."
+data.frame(ajustado = fitted(m_base), residuo = resid(m_base)) |>
+  ggplot(aes(ajustado, residuo)) +
+  geom_point(alpha = .05) +
+  geom_smooth(se = FALSE, color = "blue") +
+  geom_hline(yintercept = 0, color = "red") +
+  labs(x = "Valores ajustados", y = "Residuos") + theme_minimal()
+```
+
+```{r diag-bp}
+lmtest::bptest(m_base)
+```
+
+El test de **Breusch-Pagan rechaza** la homocedasticidad (p < 0,001): hay
+**heterocedasticidad**, algo habitual en datos salariales. Esto no sesga los
+coeficientes, pero **invalida los errores estándar clásicos**. Se lo aborda más
+abajo con errores estándar robustos.
+
+**Normalidad de los residuos.**
+
+```{r diag-qq}
+#| echo: false
+#| fig-cap: "Q-Q normal de los residuos del modelo."
+ggplot(data.frame(r = resid(m_base)), aes(sample = r)) +
+  stat_qq(alpha = .1) + stat_qq_line(color = "red") +
+  labs(x = "Cuantiles teóricos", y = "Residuos") + theme_minimal()
+```
+
+```{r diag-norm}
+#| echo: false
+r <- resid(m_base)
+asim <- mean(((r-mean(r))/sd(r))^3); curt <- mean(((r-mean(r))/sd(r))^4) - 3
+cat(sprintf("Asimetría = %.3f | Curtosis (exceso) = %.3f\n", asim, curt))
+nortest::ad.test(r)
+```
+
+Los residuos son **simétricos** (asimetría ≈ 0) pero con **colas algo más pesadas**
+que la normal (curtosis en exceso ≈ 2,9). El test de Anderson-Darling rechaza la
+normalidad, pero con un tamaño muestral tan grande **detecta desvíos mínimos** (U1);
+dado que $n > 10.000$, por el **Teorema Central del Límite** la distribución de los
+estimadores es aproximadamente normal y la inferencia se mantiene válida.
+
+**Observaciones influyentes.** Se evalúan con la distancia de Cook, el leverage y
+las DFBETAS:
+
+```{r diag-influ}
+#| echo: false
+#| fig-cap: "Distancia de Cook por observación (ninguna supera el umbral 1)."
+ck <- cooks.distance(m_base)
+ggplot(data.frame(i = seq_along(ck), ck = ck), aes(i, ck)) +
+  geom_segment(aes(xend = i, yend = 0), alpha = .3) +
+  labs(x = "Observación", y = "Distancia de Cook") + theme_minimal()
+```
+
+```{r diag-influ-tab}
+#| echo: false
+n <- nrow(datos); p <- length(coef(m_base)); hv <- hatvalues(m_base)
+data.frame(
+  Criterio = c("Distancia de Cook > 1", "Leverage > 2p/n", "Máx. distancia de Cook"),
+  Valor = c(sum(ck > 1), sum(hv > 2*p/n), round(max(ck), 4))
+) |> kable(caption = "Diagnóstico de observaciones influyentes.")
+```
+
+**Ningún punto es influyente**: la distancia de Cook máxima es 0,007, muy por
+debajo del umbral 1. Esto **confirma la decisión tomada en el pre-procesamiento**:
+los salarios atípicos que conservamos no distorsionan el ajuste (la transformación
+logarítmica atenúa su efecto), por lo que no corresponde eliminarlos.
+
+**Multicolinealidad.**
+
+```{r diag-vif}
+#| echo: false
+v <- car::vif(m_base)
+data.frame(Variable = rownames(v), GVIF = round(v[,1], 1),
+           `GVIF^(1/2·gl)` = round(v[,3], 2), check.names = FALSE, row.names = NULL) |>
+  kable(caption = "Factores de inflación de la varianza (GVIF).")
+```
+
+El único valor alto corresponde a `edad` y `edad²`, lo cual es **esperable y
+benigno**: ambos términos están correlacionados por construcción (es el mismo
+predictor elevado al cuadrado) y no afecta ni las predicciones ni el contraste
+conjunto del efecto de la edad. El resto de las variables no presenta
+multicolinealidad (GVIF ≈ 1).
+
+**Abordaje de la heterocedasticidad: errores estándar robustos.** Se reestiman los
+errores con la corrección de White (HC1). Como muestra la tabla, son **muy
+similares** a los clásicos y **ninguna conclusión cambia**:
+
+```{r diag-robusto}
+#| echo: false
+rob <- lmtest::coeftest(m_base, vcov = sandwich::vcovHC(m_base, type = "HC1"))
+keep <- c("nivel_edSuperior completo", "sexoMujer", "informalInformal",
+          "tamano_estabGrande (mas de 40)", "regionPatagonia")
+data.frame(
+  Variable = c("Superior completo", "Mujer", "Informal", "Tamaño grande", "Patagonia"),
+  `SE clásico` = round(summary(m_base)$coefficients[keep, 2], 4),
+  `SE robusto` = round(rob[keep, 2], 4),
+  `p robusto` = signif(rob[keep, 4], 2), check.names = FALSE, row.names = NULL
+) |> kable(caption = "Errores estándar clásicos vs. robustos (HC1), coeficientes seleccionados.")
+```
+
+En síntesis, el modelo es adecuado: la única violación relevante es la
+heterocedasticidad, que se corrige con errores robustos sin alterar las
+conclusiones; el apartamiento de la normalidad es inocuo dado el tamaño muestral, y
+no hay observaciones influyentes ni multicolinealidad problemática.
 
 ## Modelo final e interpretación
 
