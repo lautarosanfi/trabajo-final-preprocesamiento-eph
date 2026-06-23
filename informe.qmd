@@ -808,6 +808,43 @@ data.frame(
 ) |> kable(caption = "Modelo final: efecto porcentual sobre el salario horario (IC 95% robustos). Referencias: Primario incompleto o menos, Varón, Formal, Chico (hasta 5), GBA.")
 ```
 
+```{r final-forest}
+#| echo: false
+#| fig-height: 6
+#| fig-cap: "Efecto porcentual sobre el salario con IC 95% robustos. En rojo, los efectos no significativos (cuyo intervalo contiene el 0)."
+V  <- sandwich::vcovHC(m_base, type = "HC1")
+ci <- lmtest::coefci(m_base, vcov. = V)
+b  <- coef(m_base)
+filas <- !grepl("Intercept|edad", names(b))
+nombres <- c("Educación: Primario completo", "Educación: Secundario incompleto",
+  "Educación: Secundario completo", "Educación: Superior incompleto",
+  "Educación: Superior completo", "Sexo: Mujer", "Informalidad: Informal",
+  "Tamaño: Mediano", "Tamaño: Grande", "Tamaño: Casa particular",
+  "Región: Pampeana", "Región: NOA", "Región: NEA", "Región: Cuyo",
+  "Región: Patagonia")
+sig <- !(ci[filas, 1] < 0 & ci[filas, 2] > 0)   # IC (log) que NO contiene 0
+dfp <- data.frame(
+  variable = factor(nombres, levels = rev(nombres)),
+  efecto = 100*(exp(b[filas]) - 1),
+  low    = 100*(exp(ci[filas, 1]) - 1),
+  high   = 100*(exp(ci[filas, 2]) - 1),
+  Significatividad = factor(ifelse(sig, "Significativo",
+                                   "No significativo (IC contiene 0)"),
+                            levels = c("Significativo", "No significativo (IC contiene 0)")))
+ggplot(dfp, aes(efecto, variable, color = Significatividad)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  geom_pointrange(aes(xmin = low, xmax = high)) +
+  scale_color_manual(values = c("Significativo" = "steelblue",
+                                "No significativo (IC contiene 0)" = "red")) +
+  labs(x = "Efecto sobre el salario (%)", y = NULL) +
+  theme_minimal() + theme(legend.position = "bottom")
+```
+
+El gráfico permite leer de un vistazo la magnitud, la precisión y la
+significatividad de cada efecto. El único intervalo que cruza el 0 (en rojo) es el
+de *Primario completo*: no hay evidencia de que ese primer escalón educativo
+implique un salario distinto al de quienes tienen, a lo sumo, primario incompleto.
+
 **Retornos a la educación.** El salario crece de manera **monótona y creciente**
 con el nivel educativo. El primer escalón (*Primario completo*) no es
 significativo, pero a partir de *Secundario incompleto* todos lo son: completar el
