@@ -310,10 +310,11 @@ no necesariamente de ingresos reales extraordinarios:
 ```{r tabla-extremos}
 #| echo: false
 datos |> arrange(desc(salario_horario)) |>
-  transmute(`Salario horario` = round(salario_horario), Horas = horas,
+  transmute(`Salario mensual` = round(salario_mensual), Horas = horas,
+            `Salario horario` = round(salario_horario),
             `Nivel educativo` = nivel_ed, Sector = sector, Informal = informal) |>
   head(6) |>
-  kable(caption = "Seis salarios horarios más altos: varios provienen de pocas horas.")
+  kable(caption = "Seis salarios horarios más altos. El salario horario surge del mensual dividido por las horas mensuales (mensual / (horas × 4,33)): las pocas horas declaradas inflan el cociente.")
 ```
 
 **Decisión.** Siguiendo el criterio de la asignatura (U4), **no se eliminan las
@@ -368,9 +369,14 @@ ggplot(datos, aes(sexo, log_salario, fill = informal)) +
   theme_minimal()
 ```
 
-Se observan dos patrones esperados: una **brecha de género** (los varones
-presentan salarios mayores) y una **penalización por informalidad** (los
-informales ganan menos), que se mantiene dentro de cada sexo.
+Aquí aparece con claridad la **penalización por informalidad**: los formales ganan
+bastante más que los informales, en ambos sexos. En cambio, la **brecha de género
+es prácticamente nula a nivel marginal** (las medianas por sexo casi coinciden, y
+las medias en log son iguales dentro de cada condición de registro). Este
+resultado, a primera vista llamativo, se explica porque las mujeres de la muestra
+tienen en promedio **mayor nivel educativo** (48% con estudios superiores frente a
+32% de los varones), lo que compensa y **enmascara** la brecha a nivel agregado.
+Como se ve más abajo, al condicionar por educación la brecha sí emerge.
 
 ```{r biv-tamano}
 #| echo: false
@@ -461,8 +467,13 @@ ggplot(datos, aes(nivel_ed, log_salario, fill = sexo)) +
   theme_minimal() + theme(axis.text.x = element_text(angle = 20, hjust = 1))
 ```
 
-La brecha de género persiste en todos los niveles educativos, lo que sugiere
-explorar una posible **interacción** educación × sexo en la etapa de modelado.
+Aquí **sí** se aprecia la brecha de género: **dentro de cada nivel educativo los
+varones ganan más que las mujeres** (entre ~7% y ~19% en log-salario, todas las
+diferencias positivas). La brecha es, entonces, un fenómeno **condicional**: a
+nivel agregado quedaba oculta por la mayor educación femenina, pero emerge al
+comparar a igualdad de nivel educativo. Esto motiva con fuerza el enfoque
+multivariado y sugiere explorar una **interacción** educación × sexo en el
+modelado.
 
 # Modelo de regresión lineal
 

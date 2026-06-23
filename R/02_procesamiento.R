@@ -34,7 +34,8 @@ ana <- organize_caes(ana)   # agrega caes_eph_label (sector, 12 ramas)
 
 base <- ana %>% transmute(
   # --- respuesta lineal ---
-  salario_horario = P21 / (PP3E_TOT * 4.33),     # P21 mensual / horas mensuales
+  salario_mensual = P21,                          # ingreso mensual ocup. principal
+  salario_horario = P21 / (PP3E_TOT * 4.33),      # P21 mensual / horas mensuales
   log_salario     = log(salario_horario),
   # --- respuesta logística (Informal = "éxito", 2º nivel) ---
   informal = factor(if_else(PP07H == 2, "Informal", "Formal"),
