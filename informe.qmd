@@ -780,7 +780,76 @@ no hay observaciones influyentes ni multicolinealidad problemática.
 
 ## Modelo final e interpretación
 
-*(En desarrollo.)*
+El modelo final es el **modelo aditivo de Mincer** seleccionado, estimado con
+**errores estándar robustos (HC1)** dada la heterocedasticidad detectada. Explica
+un **`r round(100*summary(m_base)$adj.r.squared)`%** de la variabilidad del
+log-salario ($R^2$ ajustado = 0,388). La tabla resume el **efecto porcentual** de
+cada característica sobre el salario, con sus intervalos de confianza al 95%
+(robustos), manteniendo constantes las demás:
+
+```{r final-tabla}
+#| echo: false
+V  <- sandwich::vcovHC(m_base, type = "HC1")
+ci <- lmtest::coefci(m_base, vcov. = V)
+b  <- coef(m_base)
+filas <- !grepl("Intercept|edad", names(b))
+nombres <- c("Educación: Primario completo", "Educación: Secundario incompleto",
+  "Educación: Secundario completo", "Educación: Superior incompleto",
+  "Educación: Superior completo", "Sexo: Mujer", "Informalidad: Informal",
+  "Tamaño: Mediano", "Tamaño: Grande", "Tamaño: Casa particular",
+  "Región: Pampeana", "Región: NOA", "Región: NEA", "Región: Cuyo",
+  "Región: Patagonia")
+data.frame(
+  Variable = nombres,
+  `Efecto (%)` = round(100*(exp(b[filas]) - 1), 1),
+  `IC 95% inf. (%)` = round(100*(exp(ci[filas, 1]) - 1), 1),
+  `IC 95% sup. (%)` = round(100*(exp(ci[filas, 2]) - 1), 1),
+  check.names = FALSE, row.names = NULL
+) |> kable(caption = "Modelo final: efecto porcentual sobre el salario horario (IC 95% robustos). Referencias: Primario incompleto o menos, Varón, Formal, Chico (hasta 5), GBA.")
+```
+
+**Retornos a la educación.** El salario crece de manera **monótona y creciente**
+con el nivel educativo. El primer escalón (*Primario completo*) no es
+significativo, pero a partir de *Secundario incompleto* todos lo son: completar el
+secundario se asocia a un salario **~22% mayor**, y el nivel superior completo a
+uno **~78% mayor** (IC: 63% a 93%) respecto de quienes tienen, a lo sumo, primario
+incompleto. Es el determinante más fuerte del salario, junto con la informalidad.
+
+**Perfil de edad.** El efecto de la edad es **cóncavo** (coeficiente positivo en
+`edad`, negativo en `edad²`): el salario aumenta con la edad —reflejo de la
+acumulación de experiencia— a una tasa decreciente, alcanza su **máximo cerca de
+los 57 años** y luego desciende levemente. Es el clásico perfil de
+experiencia-ingresos de Mincer.
+
+**Brecha de género.** A igualdad de educación, edad, informalidad, tamaño y
+región, las **mujeres ganan ~6,4% menos** que los varones (IC: −8,3% a −4,5%). Es
+una brecha **condicional** y significativa: la parte de la diferencia salarial que
+no explican las características observadas (recordando que, sin controlar por
+educación, la brecha se veía casi nula).
+
+**Penalización por informalidad.** Los trabajadores **informales ganan ~26%
+menos** (IC: −28% a −24%) que los formales de iguales características. Es el efecto
+individual más grande del modelo y subraya el costo salarial de la no
+registración. (Esta variable es, además, la respuesta del modelo logístico de la
+sección siguiente.)
+
+**Prima por tamaño del establecimiento.** Existe una clara **prima por tamaño**:
+respecto de los establecimientos chicos, los medianos pagan **~11% más** y los
+grandes **~20% más**. El servicio doméstico ("Casa particular") queda ~5% por
+debajo de los chicos.
+
+**Diferencias regionales.** Tomando el GBA como referencia, el **NOA, NEA y Cuyo
+pagan significativamente menos** (entre ~17% y ~24%), mientras que la
+**Patagonia paga ~27% más** —consistente con su mayor costo de vida y la
+estructura productiva (hidrocarburos, etc.)—. La región Pampeana se ubica apenas
+por debajo del GBA.
+
+**Síntesis (objetivo 1).** El modelo cumple el objetivo de explicar el salario en
+función del capital humano y las características del empleo: confirma **retornos
+crecientes a la educación**, un **perfil cóncavo de edad**, y identifica como
+factores de mayor peso a la **informalidad** y la **educación superior**. Persiste
+una **brecha de género** de ~6% no explicada por las demás variables, y se
+verifican primas por **tamaño** y diferencias **regionales** marcadas.
 
 # Modelo de regresión logística
 
