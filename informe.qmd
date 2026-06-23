@@ -328,7 +328,141 @@ con evidencia de influencia desmedida, se considerará un tratamiento adicional
 
 # Análisis exploratorio
 
-*(En desarrollo.)*
+## Distribución de las variables respuesta
+
+La distribución de `log_salario` ya se mostró en la sección de transformaciones
+(aproximadamente simétrica). En cuanto a la informalidad, algo más de un tercio
+de los asalariados es informal:
+
+```{r univ-informal}
+#| echo: false
+#| fig-cap: "Distribución de la informalidad laboral."
+datos |> count(informal) |> mutate(p = n/sum(n)) |>
+  ggplot(aes(informal, p, fill = informal)) +
+  geom_col(width = .6) +
+  geom_text(aes(label = scales::percent(p, accuracy = .1)), vjust = -0.4) +
+  scale_y_continuous(labels = scales::percent, expand = expansion(c(0,.1))) +
+  labs(x = NULL, y = NULL) + theme_minimal() + theme(legend.position = "none")
+```
+
+## Salario según características (bivariado)
+
+```{r biv-educ}
+#| echo: false
+#| fig-cap: "Salario (log) según nivel educativo: retornos a la educación."
+ggplot(datos, aes(nivel_ed, log_salario)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(x = NULL, y = "log(Salario horario)") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+El salario crece de manera monótona con el nivel educativo, sugiriendo
+**retornos positivos a la educación**.
+
+```{r biv-sexo-informal}
+#| echo: false
+#| fig-cap: "Salario (log) según sexo y condición de informalidad."
+ggplot(datos, aes(sexo, log_salario, fill = informal)) +
+  geom_boxplot() +
+  labs(x = NULL, y = "log(Salario horario)", fill = NULL) +
+  theme_minimal()
+```
+
+Se observan dos patrones esperados: una **brecha de género** (los varones
+presentan salarios mayores) y una **penalización por informalidad** (los
+informales ganan menos), que se mantiene dentro de cada sexo.
+
+```{r biv-tamano}
+#| echo: false
+#| fig-cap: "Salario (log) según tamaño del establecimiento."
+ggplot(datos, aes(tamano_estab, log_salario)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(x = NULL, y = "log(Salario horario)") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+Aparece la **prima salarial por tamaño**: a mayor tamaño del establecimiento,
+mayor salario; el servicio doméstico ("Casa particular") muestra los salarios
+más bajos.
+
+## Forma funcional de la relación salario–edad
+
+Antes de incluir el término cuadrático de la edad en el modelo, se verifica que
+la relación efectivamente lo amerite. El perfil marginal es **cóncavo** (crece,
+alcanza un máximo y se aplana), como muestra el suavizado:
+
+```{r biv-edad}
+#| echo: false
+#| fig-cap: "Salario (log) según edad, con suavizado loess: perfil cóncavo."
+ggplot(datos, aes(edad, log_salario)) +
+  geom_point(alpha = .04) +
+  geom_smooth(method = "loess", color = "red", se = TRUE) +
+  labs(x = "Edad (años)", y = "log(Salario horario)") + theme_minimal()
+```
+
+El contraste formal confirma que la **especificación cuadrática** mejora
+significativamente sobre la lineal, incluso controlando por las demás
+covariables, mientras que el término cúbico aporta de manera marginal:
+
+```{r anova-edad}
+#| echo: false
+base_f <- log_salario ~ nivel_ed + sexo + informal + region + tamano_estab
+a1 <- lm(update(base_f, . ~ . + edad), datos)
+a2 <- lm(update(base_f, . ~ . + edad + I(edad^2)), datos)
+a3 <- lm(update(base_f, . ~ . + edad + I(edad^2) + I(edad^3)), datos)
+anova(a1, a2, a3) |>
+  as.data.frame() |>
+  mutate(Modelo = c("+ edad", "+ edad²", "+ edad³"), .before = 1) |>
+  kable(digits = c(0,0,0,0,2,3), caption = "ANOVA: especificaciones de la edad (ajustadas por las demás covariables).")
+```
+
+```{r pico-edad}
+#| echo: false
+b <- coef(a2)
+edad_pico <- -b["edad"] / (2 * b["I(edad^2)"])
+```
+
+La cuadrática es altamente significativa (p ≈ 0), y aunque la cúbica también lo
+es, su aporte es ínfimo; por **parsimonia e interpretabilidad** se adopta la
+cuadrática. Según ella, el salario alcanza su máximo alrededor de los
+**`r round(edad_pico)` años**, un valor económicamente razonable (perfil de
+ingresos por experiencia con rendimientos decrecientes). Se justifica así la
+inclusión de `edad²`.
+
+## Informalidad según características
+
+```{r biv-informalidad}
+#| echo: false
+#| fig-cap: "Tasa de informalidad según nivel educativo y tamaño del establecimiento."
+bind_rows(
+  datos |> group_by(grupo = nivel_ed) |> summarise(tasa = mean(informal=="Informal")) |> mutate(var = "Nivel educativo"),
+  datos |> group_by(grupo = tamano_estab) |> summarise(tasa = mean(informal=="Informal")) |> mutate(var = "Tamaño del establecimiento")
+) |>
+  ggplot(aes(grupo, tasa)) +
+  geom_col(fill = "darkorange") +
+  scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~var, scales = "free_x", ncol = 1) +
+  labs(x = NULL, y = "Tasa de informalidad") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+La informalidad **decrece con el nivel educativo** y es mucho menor en
+establecimientos grandes (y máxima en el servicio doméstico), lo que anticipa el
+poder explicativo de estas variables en el modelo logístico.
+
+## Mirada multivariada: brecha de género por nivel educativo
+
+```{r multi-genero-educ}
+#| echo: false
+#| fig-cap: "Salario (log) por nivel educativo y sexo."
+ggplot(datos, aes(nivel_ed, log_salario, fill = sexo)) +
+  geom_boxplot() +
+  labs(x = NULL, y = "log(Salario horario)", fill = NULL) +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+La brecha de género persiste en todos los niveles educativos, lo que sugiere
+explorar una posible **interacción** educación × sexo en la etapa de modelado.
 
 # Modelo de regresión lineal
 
