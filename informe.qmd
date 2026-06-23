@@ -192,19 +192,139 @@ dentro del conjunto de entrenamiento para evitar fuga de información.)
 
 ## Recodificación de categorías
 
-*(En desarrollo.)*
+Varias variables se recodificaron para el análisis (todo en `R/02_procesamiento.R`):
+
+- **Nivel educativo** (`NIVEL_ED`): se unieron "Sin instrucción" y "Primario
+  incompleto" en una sola categoría ("Primario incompleto o menos"), por la muy
+  baja frecuencia de la primera. Quedan 6 niveles.
+- **Sexo**, **región** e **informalidad**: códigos numéricos → etiquetas legibles.
+- **Tamaño del establecimiento** y **sector**: ver la sección de faltantes y la
+  clasificación CAES-EPH.
+
+> El nivel educativo, aunque tiene un orden natural, se trata como **factor no
+> ordenado** (no `ordered`): así se evita que `lm()`/`glm()` generen contrastes
+> polinómicos y cada nivel se interpreta respecto de una categoría de referencia.
 
 ## Creación de variables derivadas
 
-*(En desarrollo.)*
+La respuesta del modelo lineal es ella misma una **variable derivada**: el
+**salario horario** combina el ingreso mensual de la ocupación principal (`P21`)
+con las horas semanales trabajadas (`PP3E_TOT`):
 
-## Transformaciones y cambios de escala
+$$\text{salario\_horario} = \frac{P21}{PP3E\_TOT \times 4{,}33}$$
 
-*(En desarrollo.)*
+donde 4,33 ≈ semanas promedio por mes. De ella se deriva su **logaritmo**
+(`log_salario`), por lo que se explica en la sección siguiente. En el modelo se
+incluirá además el **término cuadrático de la edad** (`edad²`), para capturar el
+perfil no lineal salario–edad (rendimientos decrecientes de la experiencia).
+
+## Transformaciones de variables
+
+El salario horario muestra la fuerte **asimetría positiva** característica de las
+variables de ingreso. La transformación logarítmica la corrige de manera notable:
+
+```{r asimetria}
+#| echo: false
+g1 <- function(x){x<-x[is.finite(x)];m<-mean(x);s<-sd(x);mean(((x-m)/s)^3)}
+g2 <- function(x){x<-x[is.finite(x)];m<-mean(x);s<-sd(x);mean(((x-m)/s)^4)-3}
+tibble(
+  Variable = c("Salario horario (original)", "log(Salario horario)"),
+  Asimetría = c(g1(datos$salario_horario), g1(datos$log_salario)),
+  Curtosis  = c(g2(datos$salario_horario), g2(datos$log_salario))
+) |> mutate(across(where(is.numeric), \(x) round(x, 2))) |>
+  kable(caption = "Asimetría y curtosis antes y después del logaritmo.")
+```
+
+```{r hist-transf}
+#| echo: false
+#| fig-cap: "Distribución del salario horario en escala original y logarítmica."
+datos |> transmute(`Salario horario (original)` = salario_horario,
+                   `log(Salario horario)` = log_salario) |>
+  pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
+  ggplot(aes(valor)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 40,
+                 fill = "steelblue", color = "white") +
+  geom_density(color = "darkblue", linewidth = 0.8) +
+  facet_wrap(~Escala, scales = "free") +
+  labs(x = NULL, y = "Densidad") + theme_minimal()
+```
+
+```{r qq-transf}
+#| echo: false
+#| fig-cap: "Gráficos Q-Q normales: la escala logarítmica alinea los cuantiles."
+datos |> transmute(`Salario horario (original)` = salario_horario,
+                   `log(Salario horario)` = log_salario) |>
+  pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
+  ggplot(aes(sample = valor)) + stat_qq(alpha = .3) + stat_qq_line(color = "red") +
+  facet_wrap(~Escala, scales = "free") +
+  labs(x = "Cuantiles teóricos", y = "Cuantiles muestrales") + theme_minimal()
+```
+
+La asimetría pasa de **4,0 a ≈ 0** y la curtosis de **≈ 35 a ≈ 1**: en escala
+logarítmica la distribución es prácticamente simétrica y mucho más cercana a la
+normal, como confirma el Q-Q plot. Dado el gran tamaño muestral, los tests
+formales de normalidad rechazarían igualmente la hipótesis nula incluso ante
+desvíos menores (U1), por lo que la evaluación se apoya en las herramientas
+gráficas y en las medidas de forma. Se modelará, entonces, **`log_salario`**, lo
+que además le da a los coeficientes una interpretación en términos
+**porcentuales** (semielasticidades), muy conveniente para el análisis económico.
+
+## Cambios de escala
+
+Para el modelo de regresión lineal por MCO **no es necesario estandarizar**: con
+predictoras mayormente categóricas y una continua (`edad`), los coeficientes son
+directamente interpretables en sus unidades. La **estandarización** (z-score) se
+reservará para cuando se requiera **comparar magnitudes entre predictoras** o se
+apliquen métodos de **regresión penalizada (Ridge/Lasso)**, que son sensibles a la
+escala (U3). En ese caso se estandarizará la variable `edad` (y su cuadrado);
+las categóricas no se estandarizan.
 
 ## Detección y tratamiento de valores atípicos
 
-*(En desarrollo.)*
+```{r boxplot-out}
+#| echo: false
+#| fig-cap: "Box-plots: los atípicos extremos de la escala original se atenúan en log."
+datos |> transmute(`Salario horario (original)` = salario_horario,
+                   `log(Salario horario)` = log_salario) |>
+  pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
+  ggplot(aes(y = valor)) + geom_boxplot(fill = "lightblue") +
+  facet_wrap(~Escala, scales = "free") +
+  labs(y = NULL) + theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+```{r conteo-out}
+#| echo: false
+reg <- function(x){q<-quantile(x,c(.25,.75));i<-1.5*diff(q)
+  sum(x < q[1]-i | x > q[2]+i)}
+tibble(Escala = c("Salario horario (original)", "log(Salario horario)"),
+       `Atípicos (regla 1,5·RIC)` = c(reg(datos$salario_horario), reg(datos$log_salario)),
+       `% del total` = round(100*c(reg(datos$salario_horario), reg(datos$log_salario))/nrow(datos),1)) |>
+  kable(caption = "Cantidad de valores atípicos según la regla del rango intercuartílico.")
+```
+
+Al examinar los salarios horarios más altos se observa que **muchos son artefactos
+del denominador**: surgen de muy pocas horas declaradas (que inflan el cociente),
+no necesariamente de ingresos reales extraordinarios:
+
+```{r tabla-extremos}
+#| echo: false
+datos |> arrange(desc(salario_horario)) |>
+  transmute(`Salario horario` = round(salario_horario), Horas = horas,
+            `Nivel educativo` = nivel_ed, Sector = sector, Informal = informal) |>
+  head(6) |>
+  kable(caption = "Seis salarios horarios más altos: varios provienen de pocas horas.")
+```
+
+**Decisión.** Siguiendo el criterio de la asignatura (U4), **no se eliminan las
+observaciones por el solo hecho de ser atípicas**, ya que no hay certeza de que
+sean errores de registro (podrían ser ingresos altos genuinos o empleos de pocas
+horas). El **principal tratamiento es la transformación logarítmica**, que reduce
+los atípicos de 637 a ≈ 273 y atenúa su influencia. Los casos remanentes se
+mantienen y su impacto sobre el ajuste se evaluará formalmente en la etapa de
+**diagnóstico del modelo** (distancia de Cook, leverage y DFBETAS); solo allí, y
+con evidencia de influencia desmedida, se considerará un tratamiento adicional
+(p. ej. recorte o métodos robustos).
 
 # Análisis exploratorio
 
