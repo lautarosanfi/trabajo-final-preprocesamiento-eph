@@ -477,6 +477,96 @@ modelado.
 
 # Modelo de regresión lineal
 
+## Especificación y ajuste inicial
+
+Se plantea un modelo de **regresión lineal múltiple** para el logaritmo del
+salario horario, en el marco de la **ecuación de Mincer**:
+
+$$\log(\text{salario}) = \beta_0 + \beta_1\,\text{edad} + \beta_2\,\text{edad}^2 +
+\boldsymbol{\gamma}'\text{educación} + \delta\,\text{mujer} +
+\theta\,\text{informal} + \boldsymbol{\tau}'\text{tamaño} +
+\boldsymbol{\rho}'\text{región} + \varepsilon$$
+
+Las categorías de referencia son: *Primario incompleto o menos* (educación),
+*Varón* (sexo), *Formal* (registro), *Chico (hasta 5)* (tamaño) y *GBA* (región).
+
+```{r lineal-base}
+m_base <- lm(log_salario ~ nivel_ed + edad + I(edad^2) + sexo + informal +
+               tamano_estab + region, data = datos)
+```
+
+```{r lineal-coef}
+#| echo: false
+co <- summary(m_base)$coefficients
+data.frame(`Estimación` = round(co[,1], 4), `Error est.` = round(co[,2], 4),
+           `t` = round(co[,3], 2), `p-valor` = signif(co[,4], 3),
+           check.names = FALSE) |>
+  kable(caption = sprintf("Ajuste inicial (MCO). R² = %.3f, R² ajustado = %.3f.",
+                          summary(m_base)$r.squared, summary(m_base)$adj.r.squared))
+```
+
+Todos los coeficientes presentan el **signo esperado** y son, en su mayoría,
+altamente significativos: los salarios crecen con la educación, siguen un perfil
+cóncavo en la edad, son menores para mujeres y para informales, y aumentan con el
+tamaño del establecimiento. El $R^2$ ronda 0,39, un valor habitual para
+ecuaciones de salarios con datos de corte transversal en ciencias sociales. La
+interpretación cuantitativa detallada se presenta una vez validado el modelo.
+
+## Selección de variables
+
+El análisis exploratorio sugería una posible **interacción educación × sexo**
+(la brecha parecía visible dentro de cada nivel). Se la contrasta formalmente:
+
+```{r lineal-interac}
+#| echo: false
+m_int <- update(m_base, . ~ . + nivel_ed:sexo)
+anova(m_base, m_int) |>
+  as.data.frame() |>
+  mutate(Modelo = c("Aditivo", "+ interacción educación×sexo"), .before = 1) |>
+  kable(digits = c(0,0,0,0,3,3),
+        caption = "Test de la interacción educación × sexo.")
+```
+
+La interacción **no es significativa** (p ≈ 0,52): la brecha de género existe,
+pero **no varía** entre niveles educativos, por lo que el modelo aditivo es
+suficiente y preferible por parsimonia.
+
+A continuación se aplican procedimientos automáticos de selección (stepwise en
+ambas direcciones), con los criterios **AIC** y **BIC**, partiendo de un modelo
+que incluye la interacción como candidata:
+
+```{r lineal-seleccion}
+#| echo: false
+n <- nrow(datos)
+full <- lm(log_salario ~ nivel_ed*sexo + edad + I(edad^2) + informal +
+             tamano_estab + region, data = datos)
+sel_aic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = 2)
+sel_bic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = log(n))
+
+comp <- function(m, nom) data.frame(
+  Modelo = nom, `n° coef.` = length(coef(m)),
+  `R² aj.` = round(summary(m)$adj.r.squared, 4),
+  AIC = round(AIC(m), 1), BIC = round(BIC(m), 1),
+  CME = round(sum(resid(m)^2)/df.residual(m), 4), check.names = FALSE)
+rbind(comp(m_base, "Aditivo (base)"),
+      comp(m_int,  "Con interacción"),
+      comp(sel_aic, "Selección AIC"),
+      comp(sel_bic, "Selección BIC")) |>
+  kable(caption = "Comparación de modelos por distintos criterios.")
+```
+
+Tanto **AIC como BIC seleccionan el mismo modelo aditivo base** (retienen todas
+las predictoras y descartan la interacción), que además minimiza ambos criterios
+y el CME. Se adopta, entonces, el **modelo aditivo de Mincer** como modelo de
+trabajo, sobre el cual se evaluarán los supuestos antes de su interpretación
+final.
+
+## Evaluación de supuestos y diagnóstico
+
+*(En desarrollo.)*
+
+## Modelo final e interpretación
+
 *(En desarrollo.)*
 
 # Modelo de regresión logística
