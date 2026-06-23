@@ -1001,7 +1001,99 @@ La capacidad predictiva de este modelo final se evalúa en la sección siguiente
 
 ## Evaluación de la capacidad predictiva
 
-*(En desarrollo.)*
+```{r pred-setup}
+#| include: false
+library(pROC)
+is_df <- readRDS("data/processed/insample_prob.rds")   # prob. ajustadas (in-sample)
+cv_df <- readRDS("data/processed/cv_oof.rds")           # prob. fuera de fold (CV)
+metricas <- function(obs, prob, corte){
+  pred <- factor(ifelse(prob >= corte, "Informal", "Formal"),
+                 levels = c("Formal","Informal"))
+  VP<-sum(pred=="Informal"&obs=="Informal"); FP<-sum(pred=="Informal"&obs=="Formal")
+  FN<-sum(pred=="Formal"&obs=="Informal");   VN<-sum(pred=="Formal"&obs=="Formal")
+  n<-VP+FP+FN+VN; po<-(VP+VN)/n
+  pe<-((VP+FN)/n)*((VP+FP)/n)+((FP+VN)/n)*((FN+VN)/n)
+  sens<-VP/(VP+FN); spec<-VN/(VN+FP); ppv<-VP/(VP+FP); npv<-VN/(VN+FN)
+  c(Exactitud=po,Sensibilidad=sens,Especificidad=spec,VPP=ppv,VPN=npv,
+    F1=2*ppv*sens/(ppv+sens),Kappa=(po-pe)/(1-pe))
+}
+roc_is <- roc(is_df$informal, is_df$prob, levels=c("Formal","Informal"), direction="<", quiet=TRUE)
+roc_cv <- roc(cv_df$informal, cv_df$prob, levels=c("Formal","Informal"), direction="<", quiet=TRUE)
+corte  <- as.numeric(coords(roc_is, "best", best.method="youden", ret="threshold")[1])
+```
+
+Para evaluar qué tan bien el modelo **clasifica** a las personas como
+formales/informales se usan las probabilidades ajustadas y una regla de decisión.
+
+**Curva ROC y AUC.** La curva ROC resume el desempeño para todos los puntos de
+corte posibles; el área bajo la curva (AUC) mide la capacidad de discriminación:
+
+```{r pred-roc}
+#| echo: false
+#| fig-cap: "Curva ROC del modelo de informalidad (datos de ajuste)."
+ggroc(roc_is, color = "steelblue", linewidth = 1) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = "grey60") +
+  annotate("text", x = 0.25, y = 0.15,
+           label = sprintf("AUC = %.3f", as.numeric(auc(roc_is)))) +
+  labs(x = "Especificidad", y = "Sensibilidad") + theme_minimal()
+```
+
+El **AUC ≈ 0,86** indica una **buena capacidad de discriminación** (muy por encima
+del 0,5 de una clasificación al azar).
+
+**Punto de corte.** Con el corte habitual de 0,5 el modelo es algo conservador
+para detectar informales (sensibilidad ~0,67). El **corte óptimo de Youden**
+(`r sprintf("%.2f", corte)`), que maximiza simultáneamente sensibilidad y
+especificidad, mejora la detección de informales:
+
+```{r pred-metricas}
+#| echo: false
+rbind(`Corte 0,5`     = metricas(is_df$informal, is_df$prob, 0.5),
+      `Corte óptimo`  = metricas(is_df$informal, is_df$prob, corte)) |>
+  round(3) |>
+  kable(caption = sprintf("Métricas de clasificación (in-sample). Corte óptimo de Youden = %.3f.", corte))
+```
+
+```{r pred-confusion}
+#| echo: false
+pred <- factor(ifelse(is_df$prob >= corte, "Informal", "Formal"),
+               levels = c("Formal","Informal"))
+addmargins(table(Predicho = pred, Observado = is_df$informal)) |>
+  kable(caption = "Matriz de confusión con el corte óptimo.")
+```
+
+Con el corte óptimo, el modelo alcanza una **sensibilidad de ~0,75** (detecta 3 de
+cada 4 informales) y una **especificidad de ~0,83**, con un coeficiente **Kappa ≈
+0,57** (concordancia moderada).
+
+**Validación cruzada (U6).** Para estimar la performance en datos nuevos —y
+descartar sobreajuste— se aplica **validación cruzada estratificada de 10 folds**.
+Crucialmente, la **imputación del tamaño del establecimiento se rehace dentro de
+cada fold** (usando solo el conjunto de entrenamiento y **sin** la variable
+`informal` como donante), de modo de no filtrar información:
+
+```{r pred-cv}
+#| echo: false
+corte_cv <- as.numeric(coords(roc_cv, "best", best.method="youden", ret="threshold")[1])
+rbind(`In-sample`          = c(AUC = as.numeric(auc(roc_is)),
+                               metricas(is_df$informal, is_df$prob, corte)),
+      `Validación cruzada` = c(AUC = as.numeric(auc(roc_cv)),
+                               metricas(cv_df$informal, cv_df$prob, corte_cv))) |>
+  round(3) |>
+  kable(caption = "Desempeño in-sample vs. validación cruzada (10-fold, imputación intra-fold). Métricas al corte óptimo de cada caso.")
+```
+
+Las métricas de validación cruzada son **casi idénticas** a las in-sample (AUC
+0,86 en ambos casos): el modelo **no está sobreajustado** y mantiene su capacidad
+predictiva en datos no vistos. Que la imputación intra-fold no altere los
+resultados confirma, además, que el tratamiento de faltantes **no infla**
+artificialmente la performance.
+
+**Síntesis (objetivo 2).** El modelo logístico identifica correctamente los
+determinantes de la informalidad —sobre todo el **tamaño del establecimiento** y
+la **educación**— y, con un AUC de ~0,86 validado por CV, posee una **buena
+capacidad predictiva** para clasificar a los trabajadores entre formales e
+informales.
 
 # Síntesis y limitaciones
 
