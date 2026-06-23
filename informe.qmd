@@ -190,6 +190,40 @@ Dada esta estabilidad, se adopta la imputación por **KNN** como base para el
 análisis. (Nota: al llegar a la validación cruzada, la imputación se reajusta
 dentro del conjunto de entrenamiento para evitar fuga de información.)
 
+### Efecto del método de imputación sobre la inferencia
+
+Comparar las **distribuciones** imputadas no es suficiente: importa también el
+efecto sobre la **inferencia**, en particular sobre los **intervalos de
+confianza**. La imputación simple (KNN, missForest) trata los valores imputados
+como si fueran observados y, por lo tanto, **subestima la varianza** de los
+estimadores (intervalos demasiado angostos). La **imputación múltiple (MICE)**
+corrige esto mediante las **reglas de Rubin**, que suman a la incertidumbre usual
+la variabilidad *entre* las distintas imputaciones. Anticipando el modelo de
+salarios (Sección 6), comparamos los coeficientes de la variable imputada
+(tamaño del establecimiento) y la **amplitud de sus IC al 95%** según el método:
+
+```{r imput-inferencia}
+#| echo: false
+readRDS("data/processed/diag_imput_inferencia.rds") |>
+  filter(termino %in% c("Mediano (6 a 40)", "Grande (mas de 40)")) |>
+  transmute(`Coef. (tamaño vs. Chico)` = termino, Método = metodo,
+            Estimación = round(est, 4), `Error est.` = round(se, 4),
+            `Ancho IC 95%` = round(ancho, 4)) |>
+  arrange(`Coef. (tamaño vs. Chico)`, Método) |>
+  kable(caption = "Efecto del método de imputación sobre la estimación y la precisión (coeficientes de tamaño en el modelo de salarios).")
+```
+
+Las **estimaciones puntuales** son prácticamente iguales entre métodos. En cuanto
+a la **precisión**, se cumple lo esperado: los IC más **angostos** corresponden a
+la imputación simple (KNN, missForest), mientras que **MICE produce los más
+anchos** (~3% más) al reflejar la incertidumbre de la imputación; el análisis de
+casos completos (CCA) queda en un punto intermedio (pierde precisión por usar
+menos datos). La diferencia es **pequeña** porque solo el 5,7% de una única
+predictora está imputado: con mayor proporción de faltantes, el riesgo de
+subestimar la varianza con imputación simple sería mucho más relevante. Esto
+valida usar KNN para el análisis principal **sin** que las conclusiones cambien, y
+deja constancia de la advertencia metodológica.
+
 ## Recodificación de categorías
 
 Varias variables se recodificaron para el análisis (todo en `R/02_procesamiento.R`):
