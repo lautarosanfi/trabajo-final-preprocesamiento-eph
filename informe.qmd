@@ -484,19 +484,23 @@ salario horario, en el marco de la **ecuación de Mincer**:
 
 $$
 \log(\text{salario}_i) = \beta_0 + \beta_1\,\text{edad}_i + \beta_2\,\text{edad}_i^2
-+ \beta_3\,\text{mujer}_i + \beta_4\,\text{informal}_i
-+ \sum_k \gamma_k\,\text{educ}_{ki}
-+ \sum_j \tau_j\,\text{tam}_{ji}
-+ \sum_r \rho_r\,\text{reg}_{ri} + \varepsilon_i
++ \delta\,\text{mujer}_i + \theta\,\text{informal}_i
++ \boldsymbol{\gamma}'\mathbf{educ}_i
++ \boldsymbol{\tau}'\mathbf{tam}_i
++ \boldsymbol{\rho}'\mathbf{reg}_i + \varepsilon_i
 $$
 
-donde `mujer` e `informal` son **variables indicadoras** (valen 1 o 0). Las
-variables categóricas con más de dos categorías —educación, tamaño y región—
-ingresan como **conjuntos de indicadoras (dummies)**: cada categoría aporta su
-propio coeficiente, que mide la diferencia respecto de la **categoría de
-referencia** (por eso las sumatorias recorren solo las categorías distintas de la
-de referencia). Las referencias son: *Primario incompleto o menos* (educación),
-*Varón* (sexo), *Formal* (registro), *Chico (hasta 5)* (tamaño) y *GBA* (región).
+Los términos en **negrita** son vectores. Las variables `mujer` e `informal` son
+**indicadoras** (valen 1 o 0), con efectos escalares $\delta$ y $\theta$. En
+cambio, educación, tamaño y región son variables categóricas que ingresan como
+**conjuntos de indicadoras (dummies)**: por ejemplo, $\mathbf{educ}_i$ es el
+vector de indicadoras de nivel educativo del individuo $i$ y $\boldsymbol{\gamma}$
+el vector con sus coeficientes. El producto $\boldsymbol{\gamma}'\mathbf{educ}_i$
+—donde la prima ($'$) denota **transpuesta**, de modo que se trata de un producto
+escalar— no hace más que **seleccionar el coeficiente de la categoría que le
+corresponde** a esa persona. Cada coeficiente mide la diferencia respecto de la
+**categoría de referencia**: *Primario incompleto o menos* (educación), *Varón*
+(sexo), *Formal* (registro), *Chico (hasta 5)* (tamaño) y *GBA* (región).
 
 ```{r lineal-base}
 m_base <- lm(log_salario ~ nivel_ed + edad + I(edad^2) + sexo + informal +
@@ -513,28 +517,29 @@ data.frame(`Estimación` = round(co[,1], 4), `Error est.` = round(co[,2], 4),
                           summary(m_base)$r.squared, summary(m_base)$adj.r.squared))
 ```
 
-Todos los coeficientes presentan el **signo esperado**. Como la respuesta está en
-logaritmos, cada coeficiente se interpreta —de manera aproximada— como el
-**cambio porcentual** del salario asociado a esa característica, **manteniendo
-constantes las demás**. Lectura preliminar:
+Todos los coeficientes presentan el **signo esperado**. Como la variable
+respuesta es el **logaritmo** del salario, un coeficiente $\beta$ se traduce en un
+**cambio porcentual** del salario igual a $(e^{\beta}-1)\times 100\%$ (y, para
+valores chicos, $\beta\times 100$ ya da una buena aproximación), **manteniendo
+constantes las demás variables**. Con esa regla:
 
 - **Educación** (ref.: *Primario incompleto o menos*): el salario crece de forma
-  monótona con el nivel. *Secundario completo* se asocia a ~20 log-puntos más, y
-  *Superior completo* a ~57 log-puntos más (≈ **+78%** al exponenciar): son los
-  **retornos a la educación**, el efecto más fuerte junto con la informalidad.
+  monótona con el nivel. *Secundario completo* se asocia a un salario **~22%
+  mayor**, *Superior incompleto* **~43% mayor** y *Superior completo* **~78%
+  mayor**: son los **retornos a la educación**.
 - **Edad**: coeficiente positivo en `edad` y negativo en `edad²` ⇒ perfil
   **cóncavo** (el salario sube, alcanza un máximo cerca de los 57 años y luego
   decae), consistente con la verificación previa.
-- **Sexo** (ref.: *Varón*): el coeficiente de *Mujer* es negativo y significativo
-  (≈ −6,6 log-puntos, ≈ −6,4%): una **brecha de género** a igualdad de las demás
-  características. Su relación con lo visto en el AED se analiza en detalle en la
-  sección siguiente.
-- **Informalidad** (ref.: *Formal*): los informales ganan ~30 log-puntos menos
-  (≈ **−26%**), la mayor penalización individual del modelo.
-- **Tamaño** (ref.: *Chico*): **prima por tamaño** (Mediano +10%, Grande +18%); el
-  servicio doméstico ("Casa particular") queda algo por debajo de los chicos.
-- **Región** (ref.: *GBA*): NOA, NEA y Cuyo pagan menos que el GBA; la
-  **Patagonia** paga más (~+24 log-puntos).
+- **Sexo** (ref.: *Varón*): ser mujer se asocia a un salario **~6,4% menor** a
+  igualdad de las demás características (**brecha de género**; se analiza en
+  detalle en la sección siguiente).
+- **Informalidad** (ref.: *Formal*): los informales ganan **~26% menos**, la
+  mayor penalización individual del modelo.
+- **Tamaño** (ref.: *Chico*): **prima por tamaño** —los establecimientos medianos
+  pagan **~11% más** y los grandes **~20% más**—; el servicio doméstico ("Casa
+  particular") queda **~5% por debajo** de los chicos.
+- **Región** (ref.: *GBA*): el NOA, NEA y Cuyo pagan menos que el GBA (entre **~17%
+  y ~24% menos**) y la **Patagonia** paga **~27% más**.
 
 El $R^2$ ronda 0,39, un valor habitual para ecuaciones de salarios con datos de
 corte transversal en ciencias sociales (U2). La interpretación cuantitativa
