@@ -64,6 +64,7 @@ rosa     <- "#EDA9BE"   # rosa pastel    -> Mujer
 menta    <- "#84C9AE"   # verde menta    -> ventaja / formal / sube
 durazno  <- "#EFA48A"   # coral durazno  -> desventaja / informal / baja
 lavanda  <- "#A89BD6"   # lavanda        -> acento neutro de marca
+azul     <- "#A2D2FF"   # azul pastel    -> líneas y curvas resaltadas
 
 # Versiones suaves (rellenos resaltados)
 celeste_s <- "#C2DDF0"
@@ -601,7 +602,7 @@ datos |>
   ggplot(aes(valor)) +
   geom_histogram(aes(y = after_stat(density)), bins = 40,
                  fill = gray_pl, color = "white") +
-  geom_density(color = accent2, linewidth = 1) +
+  geom_density(color = azul, linewidth = 1) +
   facet_wrap(~Escala, scales = "free") +
   labs(title = "El logaritmo corrige la fuerte asimetría del salario",
        subtitle = "Distribución del salario horario en escala original y logarítmica",
@@ -617,7 +618,7 @@ datos |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(sample = valor)) +
   stat_qq(alpha = .25, color = gray_md) +
-  stat_qq_line(color = accent, linewidth = 0.9) +
+  stat_qq_line(color = azul, linewidth = 0.9) +
   facet_wrap(~Escala, scales = "free") +
   labs(title = "En escala logarítmica los cuantiles se alinean con la normal",
        subtitle = "Gráficos Q-Q normales antes y después de la transformación",
@@ -650,10 +651,10 @@ datos |>
             `log(Salario horario)` = log_salario) |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(y = valor)) +
-  geom_boxplot(fill = gray_pl, color = slate, outlier.color = accent, outlier.alpha = .5) +
+  geom_boxplot(fill = azul, color = azul, outlier.color = gray_md, outlier.alpha = .5) +
   facet_wrap(~Escala, scales = "free") +
   labs(title = "El log comprime los atípicos extremos de la escala original",
-       subtitle = "En coral, los valores atípicos según la regla 1,5·RIC",
+       subtitle = "En gris, los valores atípicos según la regla 1,5·RIC",
        y = NULL) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
@@ -724,13 +725,10 @@ datos |> count(informal) |> mutate(p = n / sum(n)) |>
 ```{r biv-educ}
 #| echo: false
 #| fig-cap: "Salario (log) según nivel educativo."
-hi_ed <- setNames(rep(gray_pl, nlevels(datos$nivel_ed)), levels(datos$nivel_ed))
-hi_ed["Superior completo"] <- accent2_s
-ggplot(datos, aes(nivel_ed, log_salario, fill = nivel_ed)) +
-  geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .35) +
-  scale_fill_manual(values = hi_ed) +
+ggplot(datos, aes(nivel_ed, log_salario)) +
+  geom_boxplot(fill = azul, color = slate, outlier.color = gray_md, outlier.alpha = .35) +
   labs(title = "Cada escalón educativo se asocia a un salario más alto",
-       subtitle = "Salario horario (log) por máximo nivel alcanzado · en verde, el nivel mejor pago",
+       subtitle = "Salario horario (log) por máximo nivel alcanzado",
        x = NULL, y = "log(Salario horario)") +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 18, hjust = 1))
@@ -768,14 +766,10 @@ se ve enseguida, al condicionar por educación la brecha sí aparece.
 ```{r biv-tamano}
 #| echo: false
 #| fig-cap: "Salario (log) según tamaño del establecimiento."
-hi_t <- setNames(rep(gray_pl, nlevels(datos$tamano_estab)), levels(datos$tamano_estab))
-hi_t["Grande (más de 40)"] <- accent2_s
-hi_t["Casa particular"]    <- accent_s
-ggplot(datos, aes(tamano_estab, log_salario, fill = tamano_estab)) +
-  geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .35) +
-  scale_fill_manual(values = hi_t) +
+ggplot(datos, aes(tamano_estab, log_salario)) +
+  geom_boxplot(fill = azul, color = slate, outlier.color = gray_md, outlier.alpha = .35) +
   labs(title = "A mayor tamaño del establecimiento, mayor salario",
-       subtitle = "En verde el mejor pago (grandes); en coral el peor (servicio doméstico)",
+       subtitle = "Salario horario (log) según tamaño del establecimiento",
        x = NULL, y = "log(Salario horario)") +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 18, hjust = 1))
@@ -797,7 +791,7 @@ lo_pk <- (18:65)[which.max(predict(loess(log_salario ~ edad, datos),
                                    data.frame(edad = 18:65)))]
 ggplot(datos, aes(edad, log_salario)) +
   geom_point(alpha = .04, color = gray_md) +
-  geom_smooth(method = "loess", color = accent2, fill = accent2_s,
+  geom_smooth(method = "loess", color = azul, fill = azul,
               se = TRUE, linewidth = 1.3) +
   geom_vline(xintercept = lo_pk, linetype = "dashed", color = accent) +
   annotate("label", x = lo_pk, y = 6.0, label = paste0("Máximo ≈ ", lo_pk, " años"),
@@ -1111,7 +1105,7 @@ data.frame(ajustado = fitted(m_base), residuo = resid(m_base)) |>
   ggplot(aes(ajustado, residuo)) +
   geom_point(alpha = .05, color = gray_md) +
   geom_hline(yintercept = 0, color = slate, linetype = "dashed") +
-  geom_smooth(se = FALSE, color = accent, linewidth = 1) +
+  geom_smooth(se = FALSE, color = azul, linewidth = 1) +
   labs(x = "Valores ajustados", y = "Residuos")
 ```
 
@@ -1132,7 +1126,7 @@ usan errores estándar robustos.
 #| fig-cap: "Q-Q normal de los residuos del modelo."
 ggplot(data.frame(r = resid(m_base)), aes(sample = r)) +
   stat_qq(alpha = .1, color = gray_md) +
-  stat_qq_line(color = accent, linewidth = 0.9) +
+  stat_qq_line(color = azul, linewidth = 0.9) +
   labs(x = "Cuantiles teóricos", y = "Residuos")
 ```
 
@@ -1393,11 +1387,11 @@ prob_edad <- sapply(edades, function(a) {
   mean(predict(g, d, type = "response"))
 })
 ggplot(data.frame(edad = edades, prob = prob_edad), aes(edad, prob)) +
-  geom_line(color = accent, linewidth = 1.3) +
-  geom_vline(xintercept = edad_min, linetype = "dashed", color = slate) +
+  geom_line(color = azul, linewidth = 1.3) +
+  geom_vline(xintercept = edad_min, linetype = "dashed", color = accent) +
   annotate("label", x = edad_min, y = max(prob_edad) * 0.55,
            label = paste0("Mínimo ≈ ", edad_min, " años"),
-           color = slate, fill = "white", label.size = 0, fontface = "bold", size = 3.6) +
+           color = accent, fill = "white", label.size = 0, fontface = "bold", size = 3.6) +
   scale_y_continuous(labels = scales::percent) +
   labs(title = "Los jóvenes son mucho más informales; la informalidad baja con la edad",
        subtitle = "Probabilidad estimada de informalidad por edad (resto de características promediado)",
@@ -1524,11 +1518,11 @@ posibles; el área bajo la curva (AUC) mide la capacidad de discriminación:
 ```{r pred-roc}
 #| echo: false
 #| fig-cap: "Curva ROC del modelo de informalidad."
-ggroc(roc_is, color = accent2, linewidth = 1.3) +
+ggroc(roc_is, color = azul, linewidth = 1.3) +
   geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = gray_md) +
   annotate("label", x = 0.30, y = 0.18,
            label = sprintf("AUC = %.3f", as.numeric(auc(roc_is))),
-           color = accent2, fill = "white", label.size = 0,
+           color = azul, fill = "white", label.size = 0,
            fontface = "bold", size = 4.6) +
   labs(title = "El modelo distingue bien a formales de informales",
        subtitle = "Curva ROC · cuanto más se aleja de la diagonal gris, mejor la discriminación",
