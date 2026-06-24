@@ -1,0 +1,210 @@
+/*-- scss:defaults --*/
+
+// ====== Paleta pastel del informe ======
+$orchid:    #CDB4DB;   // Pink Orchid (lavanda)
+$petal:     #FFC8DD;   // Pastel Petal
+$blush:     #FFAFCC;   // Blush Pop (rosa)
+$icy:       #BDE0FE;   // Icy Blue
+$sky:       #A2D2FF;   // Sky Blue
+$ink:       #3A3550;   // tinta violácea
+$blue-dp:   #3E7CC4;   // azul saturado
+$orchid-dp: #8A63B8;   // lavanda saturado
+$pink-dp:   #E4669B;   // rosa saturado
+
+// ====== Tipografía ======
+$font-family-sans-serif: "Segoe UI", "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif !default;
+$font-size-root: 16px !default;
+$line-height-base: 1.65 !default;
+
+// ====== Colores base de Bootstrap/Quarto ======
+$body-bg: #FBFAFE !default;
+$body-color: $ink !default;
+$link-color: $blue-dp !default;
+$link-hover-color: $orchid-dp !default;
+$primary: $orchid-dp !default;
+$border-color: #ECE6F3 !default;
+
+// Código
+$code-color: #7A4FA3 !default;
+$code-bg: #F4EEFB !default;
+$code-block-bg: #F7F3FC !default;
+
+// Headings
+$headings-font-weight: 700 !default;
+$headings-color: $ink !default;
+
+
+/*-- scss:rules --*/
+
+// ====== Fondo general ======
+body {
+  background: linear-gradient(180deg, #FBFAFE 0%, #F5F1FB 100%);
+  background-attachment: fixed;
+  letter-spacing: 0.1px;
+}
+
+// ====== Banner del título (hero) ======
+.quarto-title-banner {
+  background: linear-gradient(120deg, #FFC8DD 0%, #CDB4DB 42%, #A2D2FF 100%);
+  margin-bottom: 2rem;
+  border-radius: 0 0 22px 22px;
+  box-shadow: 0 8px 28px rgba(138, 99, 184, 0.18);
+}
+.quarto-title-banner .quarto-title .title {
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+.quarto-title-banner .subtitle,
+.quarto-title-banner .quarto-title-meta {
+  color: #4a4263 !important;
+}
+
+// ====== Contenedor de contenido tipo tarjeta ======
+#quarto-document-content,
+main.content {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 2.2rem 2.6rem 2.8rem;
+  margin-top: 0.5rem;
+  box-shadow: 0 6px 30px rgba(58, 53, 80, 0.07);
+  border: 1px solid #F0EAF7;
+}
+
+// ====== Encabezados ======
+h1, h2, h3, h4 { letter-spacing: -0.3px; }
+
+h1.title { color: $ink; }
+
+h2 {
+  color: $orchid-dp;
+  border-bottom: 2px solid $petal;
+  padding-bottom: 0.35rem;
+  margin-top: 2.2rem;
+}
+
+h3 {
+  color: $blue-dp;
+  margin-top: 1.6rem;
+}
+
+h4 { color: $ink; }
+
+// Numeración de secciones en color de acento
+.header-section-number {
+  color: $orchid;
+  font-weight: 700;
+}
+
+// ====== Enlaces ======
+a { text-decoration: none; transition: color .15s ease; }
+a:hover { text-decoration: underline; text-decoration-color: $blush; }
+
+// ====== Tabla de contenidos ======
+#TOC, nav[role="doc-toc"] {
+  .nav-link {
+    color: #6b6480;
+    border-left: 2px solid transparent;
+    padding-left: 0.6rem;
+    transition: all .15s ease;
+  }
+  .nav-link:hover {
+    color: $orchid-dp;
+    border-left-color: $blush;
+  }
+  .nav-link.active {
+    color: $orchid-dp !important;
+    font-weight: 600;
+    border-left: 3px solid $orchid-dp;
+    background: linear-gradient(90deg, rgba(205,180,219,0.16), transparent);
+  }
+}
+.sidebar nav[role="doc-toc"] > h2,
+#toc-title { color: $ink; font-weight: 700; }
+
+// ====== Bloques de código ======
+div.sourceCode {
+  border-radius: 12px;
+  border: 1px solid #ECE3F6;
+  box-shadow: 0 2px 10px rgba(122, 79, 163, 0.05);
+}
+pre.sourceCode { padding: 0.4rem 0.2rem; }
+code:not(.sourceCode) {
+  background: $code-bg;
+  color: $code-color;
+  padding: 0.12em 0.38em;
+  border-radius: 6px;
+  font-size: 0.86em;
+}
+
+// Botón "Ver código" / code-tools
+details.code-fold > summary,
+.code-fold > summary {
+  color: $orchid-dp;
+  font-weight: 600;
+  cursor: pointer;
+}
+.code-tools-button, #quarto-code-tools-source {
+  color: $orchid-dp;
+}
+
+// ====== Tablas gt ======
+.gt_table {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(138, 99, 184, 0.10);
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.gt_table .gt_column_spanner,
+.gt_table .gt_col_heading { letter-spacing: 0.2px; }
+.gt_table .gt_caption {
+  color: #7a7390;
+  font-style: italic;
+  font-size: 0.82rem;
+  padding-top: 0.5rem;
+}
+
+// ====== Figuras / captions ======
+figure { margin-top: 1.2rem; margin-bottom: 1.2rem; }
+figcaption, .figure-caption, .quarto-figure figcaption {
+  color: #8b8499;
+  font-style: italic;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 0.4rem;
+}
+.quarto-figure img, p img {
+  border-radius: 12px;
+}
+
+// ====== Citas / fórmulas destacadas ======
+blockquote {
+  border-left: 4px solid $orchid;
+  background: #FBF7FE;
+  border-radius: 0 10px 10px 0;
+  padding: 0.6rem 1rem;
+  color: #574f6b;
+}
+
+// Texto en negrita con leve color de acento
+strong, b { color: #2c2840; }
+
+// ====== Separadores ======
+hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, $petal, $sky, transparent);
+  margin: 2.2rem 0;
+}
+
+// ====== Listas ======
+ul li::marker { color: $orchid-dp; }
+ol li::marker { color: $blue-dp; font-weight: 600; }
+
+// ====== Ecuaciones display: leve realce ======
+.math.display {
+  overflow-x: auto;
+}

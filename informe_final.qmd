@@ -6,17 +6,22 @@ date: today
 lang: es
 format:
   html:
-    theme: cosmo
+    theme: [cosmo, custom.scss]
     toc: true
     toc-location: left
     toc-title: "Contenidos"
+    toc-depth: 3
     number-sections: true
+    title-block-banner: true
+    title-block-banner-color: "#3A3550"
     code-fold: true
     code-tools: true
     code-summary: "Ver código"
     fig-align: center
     fig-width: 8
     fig-height: 5
+    fig-dpi: 150
+    tbl-cap-location: bottom
     embed-resources: true
     smooth-scroll: true
 execute:
@@ -36,44 +41,91 @@ knitr:
 library(tidyverse)
 library(eph)
 library(knitr)
-library(kableExtra)
+library(gt)
 
-options(knitr.kable.NA = "—")
+# ---- Paleta pastel del informe -------------------------------------------
+col_orchid <- "#CDB4DB"   # Pink Orchid  (lavanda-rosa)
+col_petal  <- "#FFC8DD"   # Pastel Petal (rosa-lila claro)
+col_blush  <- "#FFAFCC"   # Blush Pop    (rosa)
+col_icy    <- "#BDE0FE"   # Icy Blue     (celeste claro)
+col_sky    <- "#A2D2FF"   # Sky Blue     (celeste)
 
-col_teal    <- "#006D77"
-col_aqua    <- "#83C5BE"
-col_alice   <- "#EDF6F9"
-col_almond  <- "#FFDDD2"
-col_tang    <- "#E29578"
-col_grid    <- "grey90"
-col_ref     <- "grey55"
+# Versiones profundas (derivadas) para líneas, puntos y texto -> contraste
+col_blue_dp   <- "#3E7CC4"   # azul saturado
+col_pink_dp   <- "#E4669B"   # rosa saturado
+col_orchid_dp <- "#8A63B8"   # lavanda saturado
+col_ink       <- "#3A3550"   # tinta violácea (texto / títulos)
+col_grid      <- "#ECE6F3"   # grilla suave
+col_ref       <- "#A79FB8"   # guías / líneas de referencia
 
-pal_bin  <- c(col_teal, col_tang)
-pal_sig  <- c("Significativo" = col_teal, "No significativo" = col_tang)
+# Sexo: Varón azul, Mujer rosa (fijo en todo el informe)
+pal_sexo <- c("Varón" = col_sky,  "Mujer" = col_blush)
+# Informalidad
+pal_inf  <- c("Formal" = col_icy, "Informal" = col_orchid)
+# Significatividad (forest plots)
+pal_sig  <- c("Significativo" = col_blue_dp, "No significativo" = col_blush)
 
+# ---- Tema de los gráficos ------------------------------------------------
 theme_informe <- theme_minimal(base_size = 12) +
   theme(
+    text             = element_text(color = col_ink),
+    plot.title       = element_text(face = "bold", size = 13, color = col_ink),
+    plot.subtitle    = element_text(color = col_orchid_dp),
+    plot.caption     = element_text(color = col_ref, size = 9),
     panel.grid.minor = element_blank(),
-    panel.grid.major = element_line(color = col_grid, linewidth = 0.3),
-    plot.title       = element_text(face = "bold", size = 13),
-    plot.subtitle    = element_text(color = "grey35"),
-    axis.title       = element_text(color = "grey30"),
-    strip.text       = element_text(face = "bold", color = col_teal),
+    panel.grid.major = element_line(color = col_grid, linewidth = 0.35),
+    axis.title       = element_text(color = col_ink),
+    axis.text        = element_text(color = col_ink),
+    strip.text       = element_text(face = "bold", color = "white"),
+    strip.background = element_rect(fill = col_orchid_dp, color = NA),
     legend.position  = "bottom",
-    legend.title     = element_blank()
+    legend.title     = element_blank(),
+    plot.background  = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
   )
 theme_set(theme_informe)
-update_geom_defaults("bar",        list(fill = col_teal))
-update_geom_defaults("col",        list(fill = col_teal))
-update_geom_defaults("boxplot",    list(fill = col_aqua, color = "grey30"))
-update_geom_defaults("point",      list(color = col_teal))
-update_geom_defaults("pointrange", list(color = col_teal))
+update_geom_defaults("bar",        list(fill = col_sky))
+update_geom_defaults("col",        list(fill = col_sky))
+update_geom_defaults("boxplot",    list(fill = col_icy, color = col_ink))
+update_geom_defaults("point",      list(color = col_sky))
+update_geom_defaults("pointrange", list(color = col_blue_dp))
 
+# ---- Tablas con gt (estética unificada) ----------------------------------
 tabla <- function(x, cap = NULL, digits = 2, ...) {
-  kbl(x, caption = cap, digits = digits, booktabs = TRUE,
-      format.args = list(decimal.mark = ",", big.mark = "."), ...) |>
-    kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                  full_width = FALSE, position = "center")
+  x <- as.data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
+  cols    <- names(x)
+  es_num  <- vapply(x, is.numeric, logical(1))
+  g <- gt(x)
+  # Formato numérico es-AR (coma decimal, punto de miles), por columna
+  dig_de <- function(i) if (length(digits) == 1) digits else
+                        if (i <= length(digits)) digits[i] else digits[length(digits)]
+  for (i in seq_along(cols)) if (es_num[i])
+    g <- fmt_number(g, columns = all_of(cols[i]), decimals = dig_de(i),
+                    dec_mark = ",", sep_mark = ".")
+  if (!is.null(cap)) g <- tab_caption(g, md(cap))
+  g |>
+    sub_missing(missing_text = "—") |>
+    opt_row_striping() |>
+    cols_align(align = "center", columns = where(is.numeric)) |>
+    tab_options(
+      table.font.size            = px(13),
+      table.font.color           = col_ink,
+      table.background.color      = "white",
+      table.border.top.style      = "none",
+      table.border.bottom.style   = "none",
+      heading.align              = "left",
+      column_labels.background.color = col_orchid_dp,
+      column_labels.font.weight  = "bold",
+      column_labels.border.top.style    = "none",
+      column_labels.border.bottom.width = px(0),
+      row.striping.background_color = "#F7F2FB",
+      table_body.hlines.color    = "#EFE9F5",
+      data_row.padding           = px(6),
+      table.align                = "center"
+    ) |>
+    tab_style(style = cell_text(color = "white"),
+              locations = cells_column_labels()) |>
+    opt_table_outline(style = "solid", width = px(1), color = "#EDE6F4")
 }
 
 ef  <- function(b) sprintf("%+.1f%%", 100 * (exp(b) - 1))
@@ -515,8 +567,8 @@ datos |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(valor)) +
   geom_histogram(aes(y = after_stat(density)), bins = 40,
-                 fill = col_aqua, color = "white") +
-  geom_density(color = col_teal, linewidth = 0.9) +
+                 fill = col_icy, color = "white") +
+  geom_density(color = col_blue_dp, linewidth = 0.9) +
   facet_wrap(~Escala, scales = "free") +
   labs(x = NULL, y = "Densidad")
 ```
@@ -529,8 +581,8 @@ datos |>
             `log(Salario horario)` = log_salario) |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(sample = valor)) +
-  stat_qq(alpha = .25, color = col_teal) +
-  stat_qq_line(color = col_tang, linewidth = 0.8) +
+  stat_qq(alpha = .25, color = col_sky) +
+  stat_qq_line(color = col_pink_dp, linewidth = 0.8) +
   facet_wrap(~Escala, scales = "free") +
   labs(x = "Cuantiles teóricos", y = "Cuantiles muestrales")
 ```
@@ -561,7 +613,7 @@ datos |>
             `log(Salario horario)` = log_salario) |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(y = valor)) +
-  geom_boxplot(fill = col_aqua, outlier.color = col_tang, outlier.alpha = .4) +
+  geom_boxplot(fill = col_icy, color = col_ink, outlier.color = col_pink_dp, outlier.alpha = .5) +
   facet_wrap(~Escala, scales = "free") +
   labs(y = NULL) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
@@ -618,8 +670,9 @@ En cuanto a la informalidad, algo más de un tercio de los asalariados es inform
 datos |> count(informal) |> mutate(p = n / sum(n)) |>
   ggplot(aes(informal, p, fill = informal)) +
   geom_col(width = .6) +
-  geom_text(aes(label = scales::percent(p, accuracy = .1)), vjust = -0.4) +
-  scale_fill_manual(values = pal_bin) +
+  geom_text(aes(label = scales::percent(p, accuracy = .1)), vjust = -0.4,
+            color = col_ink, fontface = "bold") +
+  scale_fill_manual(values = pal_inf) +
   scale_y_continuous(labels = scales::percent, expand = expansion(c(0, .1))) +
   labs(x = NULL, y = NULL) +
   theme(legend.position = "none")
@@ -643,8 +696,8 @@ El salario crece de manera monótona con el nivel educativo, lo que anticipa
 #| echo: false
 #| fig-cap: "Salario (log) según sexo y condición de informalidad."
 ggplot(datos, aes(sexo, log_salario, fill = informal)) +
-  geom_boxplot() +
-  scale_fill_manual(values = pal_bin) +
+  geom_boxplot(color = col_ink) +
+  scale_fill_manual(values = pal_inf) +
   labs(x = NULL, y = "log(Salario horario)")
 ```
 
@@ -686,7 +739,7 @@ muestra el suavizado:
 #| fig-cap: "Salario (log) según edad, con suavizado loess: perfil cóncavo."
 ggplot(datos, aes(edad, log_salario)) +
   geom_point(alpha = .04) +
-  geom_smooth(method = "loess", color = col_tang, fill = col_almond, se = TRUE) +
+  geom_smooth(method = "loess", color = col_pink_dp, fill = col_petal, se = TRUE) +
   labs(x = "Edad (años)", y = "log(Salario horario)")
 ```
 
@@ -729,7 +782,7 @@ bind_rows(
   datos |> group_by(grupo = tamano_estab) |> summarise(tasa = mean(informal == "Informal")) |> mutate(var = "Tamaño del establecimiento")
 ) |>
   ggplot(aes(grupo, tasa)) +
-  geom_col(fill = col_tang) +
+  geom_col(fill = col_orchid) +
   scale_y_continuous(labels = scales::percent) +
   facet_wrap(~var, scales = "free_x", ncol = 1) +
   labs(x = NULL, y = "Tasa de informalidad") +
@@ -746,8 +799,8 @@ que tendrán estas variables en el modelo logístico.
 #| echo: false
 #| fig-cap: "Salario (log) por nivel educativo y sexo."
 ggplot(datos, aes(nivel_ed, log_salario, fill = sexo)) +
-  geom_boxplot() +
-  scale_fill_manual(values = pal_bin) +
+  geom_boxplot(color = col_ink) +
+  scale_fill_manual(values = pal_sexo) +
   labs(x = NULL, y = "log(Salario horario)") +
   theme(axis.text.x = element_text(angle = 20, hjust = 1))
 ```
@@ -985,7 +1038,7 @@ pero sí cierta variación no constante:
 data.frame(ajustado = fitted(m_base), residuo = resid(m_base)) |>
   ggplot(aes(ajustado, residuo)) +
   geom_point(alpha = .05) +
-  geom_smooth(se = FALSE, color = col_tang) +
+  geom_smooth(se = FALSE, color = col_pink_dp) +
   geom_hline(yintercept = 0, color = col_ref) +
   labs(x = "Valores ajustados", y = "Residuos")
 ```
@@ -1006,8 +1059,8 @@ usan errores estándar robustos.
 #| echo: false
 #| fig-cap: "Q-Q normal de los residuos del modelo."
 ggplot(data.frame(r = resid(m_base)), aes(sample = r)) +
-  stat_qq(alpha = .1, color = col_teal) +
-  stat_qq_line(color = col_tang, linewidth = 0.8) +
+  stat_qq(alpha = .1, color = col_sky) +
+  stat_qq_line(color = col_pink_dp, linewidth = 0.8) +
   labs(x = "Cuantiles teóricos", y = "Residuos")
 ```
 
@@ -1032,7 +1085,7 @@ inferencia se mantiene válida.
 #| fig-cap: "Distancia de Cook por observación (ninguna se acerca al umbral 1)."
 ck <- cooks.distance(m_base)
 ggplot(data.frame(i = seq_along(ck), ck = ck), aes(i, ck)) +
-  geom_segment(aes(xend = i, yend = 0), alpha = .3, color = col_teal) +
+  geom_segment(aes(xend = i, yend = 0), alpha = .4, color = col_blue_dp) +
   labs(x = "Observación", y = "Distancia de Cook")
 ```
 
@@ -1259,7 +1312,7 @@ prob_edad <- sapply(edades, function(a) {
   mean(predict(g, d, type = "response"))
 })
 ggplot(data.frame(edad = edades, prob = prob_edad), aes(edad, prob)) +
-  geom_line(color = col_teal, linewidth = 1) +
+  geom_line(color = col_blue_dp, linewidth = 1) +
   geom_vline(xintercept = edad_min, linetype = "dashed", color = col_ref) +
   scale_y_continuous(labels = scales::percent) +
   labs(x = "Edad (años)", y = "Probabilidad de informalidad")
@@ -1385,7 +1438,7 @@ posibles; el área bajo la curva (AUC) mide la capacidad de discriminación:
 ```{r pred-roc}
 #| echo: false
 #| fig-cap: "Curva ROC del modelo de informalidad."
-ggroc(roc_is, color = col_teal, linewidth = 1) +
+ggroc(roc_is, color = col_blue_dp, linewidth = 1) +
   geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = col_ref) +
   annotate("text", x = 0.25, y = 0.15,
            label = sprintf("AUC = %.3f", as.numeric(auc(roc_is)))) +
