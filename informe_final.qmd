@@ -42,30 +42,46 @@ library(knitr)
 library(gt)
 
 # ===========================================================================
-#  TEMA: Modern Minimalist (grises) + acentos para CONTAR LA HISTORIA
-#  Regla de color: el gris es contexto; el color marca el mensaje.
-#    coral  = desventaja / menos / riesgo   (mujer, informal, efecto que baja)
-#    teal   = ventaja / más / positivo      (formal, efecto que sube)
+#  TEMA: Modern Minimalist Pastel — el gris es contexto; el pastel, el mensaje
+#  Regla de color (paleta pastel):
+#    celeste pastel = Varón        rosa pastel  = Mujer
+#    verde menta    = ventaja / más / positivo  (formal, sube el salario)
+#    coral durazno  = desventaja / menos / riesgo (informal, baja el salario)
+#    lavanda        = acento neutro de marca
 # ===========================================================================
-ink      <- "#22303A"   # casi-negro azulado (títulos, énfasis)
-charcoal <- "#36454F"   # charcoal (texto, series principales)
-slate    <- "#708090"   # slate gray (ejes, secundario)
-gray_md  <- "#AAB4BB"   # gris medio
-gray_lt  <- "#D3D3D3"   # light gray (contexto, no significativo)
-gray_pl  <- "#EDF0F2"   # gris muy claro (rellenos neutros)
-grid_col <- "#ECEEF0"   # grilla
+ink      <- "#3A3F55"   # slate profundo (títulos, énfasis)
+charcoal <- "#525871"   # texto principal
+slate    <- "#8A90A6"   # gris azulado (ejes, secundario)
+gray_md  <- "#B4B9C9"   # gris medio
+gray_lt  <- "#DCE0EA"   # gris claro (contexto, no significativo)
+gray_pl  <- "#F1F3F9"   # gris muy claro (rellenos neutros)
+grid_col <- "#EEF0F7"   # grilla
 paper    <- "#FFFFFF"
 
-accent    <- "#E76F51"  # CORAL  -> desventaja / menos / riesgo
-accent2   <- "#2A9D8F"  # TEAL   -> ventaja / más / positivo
-accent_s  <- "#F2A48C"  # coral claro (rellenos)
-accent2_s <- "#8FC9C1"  # teal claro (rellenos)
+# Pastel principales (tono medio: legibles también como línea/punto)
+celeste  <- "#8FBEE0"   # celeste pastel -> Varón
+rosa     <- "#EDA9BE"   # rosa pastel    -> Mujer
+menta    <- "#84C9AE"   # verde menta    -> ventaja / formal / sube
+durazno  <- "#EFA48A"   # coral durazno  -> desventaja / informal / baja
+lavanda  <- "#A89BD6"   # lavanda        -> acento neutro de marca
+
+# Versiones suaves (rellenos resaltados)
+celeste_s <- "#C2DDF0"
+rosa_s    <- "#F6CEDA"
+menta_s   <- "#BCE3D3"
+durazno_s <- "#F7CFBE"
+
+# Alias semánticos (mantienen el resto del informe sin tocar)
+accent    <- durazno    # desventaja / menos / riesgo
+accent2   <- menta      # ventaja / más / positivo
+accent_s  <- durazno_s
+accent2_s <- menta_s
 
 # Mapas semánticos
-pal_sexo <- c("Varón" = slate,   "Mujer"    = accent)    # mujer resaltada (gana menos)
-pal_inf  <- c("Formal" = accent2, "Informal" = accent)   # formal bien / informal mal
-pal_dir  <- c("Sube el salario" = accent2, "Baja el salario" = accent,
-              "Más informalidad" = accent, "Menos informalidad" = accent2,
+pal_sexo <- c("Varón" = celeste, "Mujer" = rosa)          # celeste / rosa
+pal_inf  <- c("Formal" = menta,  "Informal" = durazno)    # formal bien / informal mal
+pal_dir  <- c("Sube el salario" = menta, "Baja el salario" = durazno,
+              "Más informalidad" = durazno, "Menos informalidad" = menta,
               "No significativo" = gray_lt)
 
 # ---- Tema minimalista de los gráficos ------------------------------------
@@ -75,7 +91,7 @@ theme_min <- theme_minimal(base_size = 13) +
     plot.title           = element_text(face = "bold", size = 14.5, color = ink,
                                         margin = margin(b = 3)),
     plot.subtitle        = element_text(size = 11, color = slate,
-                                        margin = margin(b = 14), lineheight = 1.1),
+                                        margin = margin(b = 14), lineheight = 1.15),
     plot.caption         = element_text(size = 8.5, color = gray_md, hjust = 0,
                                         margin = margin(t = 10)),
     plot.title.position  = "plot",
@@ -98,8 +114,8 @@ theme_min <- theme_minimal(base_size = 13) +
     plot.margin          = margin(16, 18, 12, 16)
   )
 theme_set(theme_min)
-update_geom_defaults("bar",        list(fill = charcoal))
-update_geom_defaults("col",        list(fill = charcoal))
+update_geom_defaults("bar",        list(fill = celeste))
+update_geom_defaults("col",        list(fill = celeste))
 update_geom_defaults("boxplot",    list(fill = gray_pl, color = slate))
 update_geom_defaults("point",      list(color = slate))
 update_geom_defaults("pointrange", list(color = charcoal))
@@ -133,7 +149,7 @@ tabla <- function(x, cap = NULL, digits = 2, ...) {
       column_labels.font.weight  = "bold",
       column_labels.font.size    = px(11),
       column_labels.border.top.style    = "none",
-      column_labels.border.bottom.color = ink,
+      column_labels.border.bottom.color = lavanda,
       column_labels.border.bottom.width = px(2),
       table_body.hlines.color    = "#EFF1F3",
       table_body.border.bottom.color = gray_lt,
@@ -714,7 +730,7 @@ ggplot(datos, aes(nivel_ed, log_salario, fill = nivel_ed)) +
   geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .35) +
   scale_fill_manual(values = hi_ed) +
   labs(title = "Cada escalón educativo se asocia a un salario más alto",
-       subtitle = "Salario horario (log) por máximo nivel alcanzado · en teal, el nivel mejor pago",
+       subtitle = "Salario horario (log) por máximo nivel alcanzado · en verde, el nivel mejor pago",
        x = NULL, y = "log(Salario horario)") +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 18, hjust = 1))
@@ -759,7 +775,7 @@ ggplot(datos, aes(tamano_estab, log_salario, fill = tamano_estab)) +
   geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .35) +
   scale_fill_manual(values = hi_t) +
   labs(title = "A mayor tamaño del establecimiento, mayor salario",
-       subtitle = "En teal el mejor pago (grandes); en coral el peor (servicio doméstico)",
+       subtitle = "En verde el mejor pago (grandes); en coral el peor (servicio doméstico)",
        x = NULL, y = "log(Salario horario)") +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 18, hjust = 1))
@@ -1253,7 +1269,7 @@ data.frame(
   geom_pointrange(aes(xmin = low, xmax = high), linewidth = 0.7, fatten = 3) +
   scale_color_manual(values = pal_dir) +
   labs(title = "Qué sube y qué baja el salario, a igualdad de lo demás",
-       subtitle = "Teal: aumenta el salario · coral: lo reduce · gris: sin efecto significativo",
+       subtitle = "Verde: aumenta el salario · coral: lo reduce · gris: sin efecto significativo",
        x = "Efecto sobre el salario (%)", y = NULL)
 ```
 

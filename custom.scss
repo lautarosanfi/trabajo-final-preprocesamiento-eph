@@ -1,156 +1,188 @@
 /*-- scss:defaults --*/
 
-// ====== Modern Minimalist ======
-// Base en grises; el color (coral) se reserva para lo que hay que resaltar.
-$ink:       #22303A;   // casi-negro azulado (títulos)
-$charcoal:  #36454F;   // charcoal (texto)
-$slate:     #708090;   // slate gray (secundario)
-$gray-md:   #AAB4BB;
-$gray-lt:   #D3D3D3;   // light gray (divisores)
-$gray-pl:   #EDF0F2;   // gris muy claro
-$accent:    #E76F51;   // coral (acento principal)
-$accent2:   #2A9D8F;   // teal (acento secundario)
-$paper:     #FFFFFF;
+// ============================================================
+//  Modern Minimalist Pastel
+//  Grises suaves de base; los pastel marcan el mensaje.
+//    celeste = Varón · rosa = Mujer
+//    menta   = ventaja / formal · durazno = desventaja / informal
+//    lavanda = acento de marca (navegación, títulos)
+// ============================================================
+$ink:       #3A3F55;   // slate profundo (títulos)
+$charcoal:  #525871;   // texto
+$slate:     #8A90A6;   // secundario
+$gray-md:   #B4B9C9;
+$gray-lt:   #DCE0EA;   // divisores
+$gray-pl:   #F1F3F9;   // gris muy claro
+
+$celeste:   #8FBEE0;   // Varón
+$rosa:      #EDA9BE;   // Mujer
+$menta:     #84C9AE;   // ventaja / formal
+$durazno:   #EFA48A;   // desventaja / informal
+$lavanda:   #A89BD6;   // acento de marca
+
+// acentos de texto algo más saturados que el pastel puro, para que lean bien
+$accent:        #7E78C2;   // lavanda profundo -> enlaces, navegación
+$accent-soft:   #B7AEE2;
+$paper:         #FFFFFF;
 
 // ---- Tipografía ----
-$font-family-sans-serif: "Inter", "Helvetica Neue", "Segoe UI", Arial, "DejaVu Sans", sans-serif !default;
-$headings-font-family: $font-family-sans-serif !default;
+$font-family-sans-serif: "Inter", "Segoe UI", system-ui, "Helvetica Neue", Arial, "DejaVu Sans", sans-serif !default;
+$headings-font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", sans-serif !default;
 $font-size-root: 16px !default;
-$line-height-base: 1.7 !default;
+$line-height-base: 1.72 !default;
 
 // ---- Bootstrap / Quarto ----
-$body-bg: #FFFFFF !default;
+$body-bg: $paper !default;
 $body-color: $charcoal !default;
 $link-color: $accent !default;
 $link-hover-color: darken($accent, 12%) !default;
-$primary: $charcoal !default;
-$border-color: #E9ECEE !default;
+$primary: $accent !default;
+$border-color: #EAECF3 !default;
 
 $headings-font-weight: 700 !default;
 $headings-color: $ink !default;
 
 // Código
-$code-color: #B5523A !default;
-$code-bg: #F6F2F0 !default;
-$code-block-bg: #FAFAFA !default;
+$code-color: #9A6BB0 !default;
+$code-bg: #F4F1FA !default;
+$code-block-bg: #FBFAFE !default;
 
 
 /*-- scss:rules --*/
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
 // ====== Lienzo ======
 body {
   background: $paper;
   letter-spacing: 0.1px;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-// Ancho de lectura cómodo + aire
 #quarto-document-content, main.content { padding-top: 1rem; }
 
-// ====== Bloque de título: limpio, sin banner, con regla coral ======
+// ====== Título: tarjeta limpia con barra pastel en degradé ======
 #title-block-header {
-  margin-bottom: 2.6rem;
-  padding-bottom: 1.6rem;
+  margin-bottom: 2.8rem;
+  padding-bottom: 1.8rem;
   border-bottom: 1px solid $gray-lt;
 }
 #title-block-header .title {
+  font-family: $headings-font-family;
   font-weight: 800;
-  font-size: 2.5rem;
-  line-height: 1.12;
-  letter-spacing: -1px;
+  font-size: 2.55rem;
+  line-height: 1.14;
+  letter-spacing: -0.8px;
   color: $ink;
   position: relative;
-  padding-top: 0.9rem;
+  padding-top: 1.1rem;
 }
-// barra de acento coral arriba del título
+// barra de acento en degradé celeste -> lavanda -> rosa (sintetiza la paleta)
 #title-block-header .title::before {
   content: "";
   display: block;
-  width: 56px;
-  height: 5px;
-  border-radius: 3px;
-  background: $accent;
-  margin-bottom: 1.1rem;
+  width: 72px;
+  height: 6px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, $celeste 0%, $lavanda 50%, $rosa 100%);
+  margin-bottom: 1.2rem;
 }
 #title-block-header .subtitle {
   color: $slate;
   font-weight: 500;
   font-size: 1.12rem;
-  margin-top: 0.5rem;
+  margin-top: 0.55rem;
 }
-.quarto-title-meta-heading { color: $gray-md; text-transform: uppercase; letter-spacing: 1px; font-size: 0.7rem; }
+.quarto-title-meta-heading {
+  color: $gray-md; text-transform: uppercase;
+  letter-spacing: 1.2px; font-size: 0.68rem; font-weight: 600;
+}
 .quarto-title-meta-contents { color: $charcoal; }
 
 // ====== Encabezados ======
-h1, h2, h3, h4 { letter-spacing: -0.4px; color: $ink; }
+h1, h2, h3, h4 {
+  font-family: $headings-font-family;
+  letter-spacing: -0.3px;
+  color: $ink;
+}
 h1:not(.title) {
-  font-size: 1.85rem;
-  margin-top: 3rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid $ink;
+  font-size: 1.78rem;
+  font-weight: 800;
+  margin-top: 3.1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid $gray-lt;
+}
+// pequeña pastilla pastel antes del número de sección de cada H1
+h1:not(.title) .header-section-number {
+  color: $accent;
+  font-weight: 800;
 }
 h2 {
-  font-size: 1.4rem;
-  margin-top: 2.4rem;
-  color: $charcoal;
+  font-size: 1.36rem;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  color: $ink;
 }
-h3 { font-size: 1.12rem; margin-top: 1.7rem; color: $charcoal; }
-h4 { font-size: 1rem; color: $slate; }
+h3 { font-size: 1.1rem; font-weight: 700; margin-top: 1.8rem; color: $charcoal; }
+h4 { font-size: 0.98rem; font-weight: 600; color: $slate; }
 
-// Numeración de secciones en coral (acento de navegación)
 .header-section-number { color: $accent; font-weight: 700; }
 
 // ====== Texto ======
 p { color: $charcoal; }
 strong, b { color: $ink; font-weight: 700; }
-a { text-decoration: none; border-bottom: 1px solid rgba(231,111,81,0.35); transition: all .15s ease; }
-a:hover { color: darken($accent, 12%); border-bottom-color: $accent; }
+a {
+  text-decoration: none;
+  border-bottom: 1px solid rgba($accent, 0.32);
+  transition: all .15s ease;
+}
+a:hover { color: $link-hover-color; border-bottom-color: $accent; }
 
 // ====== Tabla de contenidos ======
 #TOC, nav[role="doc-toc"] {
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   .nav-link {
     color: $slate;
     border-left: 2px solid transparent;
-    padding: 0.18rem 0.7rem;
+    padding: 0.2rem 0.75rem;
     transition: all .15s ease;
   }
-  .nav-link:hover { color: $ink; border-left-color: $gray-lt; }
+  .nav-link:hover { color: $ink; border-left-color: $accent-soft; }
   .nav-link.active {
     color: $accent !important;
     font-weight: 600;
     border-left: 2px solid $accent;
-    background: transparent;
+    background: rgba($accent, 0.05);
+    border-radius: 0 6px 6px 0;
   }
 }
 #toc-title, .sidebar nav[role="doc-toc"] > h2 {
-  color: $ink; font-weight: 700; font-size: 0.78rem;
-  text-transform: uppercase; letter-spacing: 1.2px;
+  color: $ink; font-weight: 700; font-size: 0.74rem;
+  text-transform: uppercase; letter-spacing: 1.3px;
 }
 
 // ====== Código ======
 div.sourceCode {
-  border-radius: 8px;
-  border: 1px solid #EDEFF1;
-  background: #FAFAFA;
+  border-radius: 10px;
+  border: 1px solid #ECEAF6;
+  background: $code-block-bg;
 }
 code:not(.sourceCode) {
   background: $code-bg; color: $code-color;
-  padding: 0.1em 0.4em; border-radius: 5px; font-size: 0.85em;
+  padding: 0.12em 0.42em; border-radius: 6px; font-size: 0.85em;
 }
 details.code-fold > summary, .code-fold > summary {
-  color: $slate; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  color: $slate; font-weight: 600; font-size: 0.84rem; cursor: pointer;
 }
 details.code-fold > summary:hover { color: $accent; }
 #quarto-code-tools-source, .code-tools-button { color: $slate; }
 
-// ====== Tablas gt: minimalistas (cabecera en mayúsculas, sin grillas) ======
+// ====== Tablas gt: minimalistas, cabecera pastel ======
 .gt_table {
   margin-left: auto !important;
   margin-right: auto !important;
-  margin-top: 0.8rem; margin-bottom: 0.4rem;
+  margin-top: 0.9rem; margin-bottom: 0.4rem;
   border: none !important;
 }
 .gt_table .gt_col_heading {
@@ -165,23 +197,24 @@ details.code-fold > summary:hover { color: $accent; }
 }
 
 // ====== Figuras / captions ======
-figure { margin: 1.6rem 0; }
+figure { margin: 1.8rem 0; }
 figcaption, .figure-caption, .quarto-figure figcaption {
-  color: $gray-md; font-size: 0.82rem; text-align: center; margin-top: 0.5rem;
+  color: $gray-md; font-size: 0.82rem; text-align: center; margin-top: 0.55rem;
 }
 
 // ====== Citas ======
 blockquote {
-  border-left: 3px solid $accent;
-  background: transparent;
-  padding: 0.2rem 0 0.2rem 1.1rem;
+  border-left: 3px solid $accent-soft;
+  background: rgba($lavanda, 0.06);
+  border-radius: 0 8px 8px 0;
+  padding: 0.4rem 0 0.4rem 1.15rem;
   color: $slate;
 }
 
 // ====== Separadores y listas ======
-hr { border: none; border-top: 1px solid $gray-lt; margin: 2.4rem 0; }
+hr { border: none; border-top: 1px solid $gray-lt; margin: 2.6rem 0; }
 ul li::marker { color: $accent; }
-ol li::marker { color: $slate; font-weight: 600; }
+ol li::marker { color: $lavanda; font-weight: 700; }
 
 // Ecuaciones con scroll horizontal si hace falta
 .math.display { overflow-x: auto; overflow-y: hidden; }
