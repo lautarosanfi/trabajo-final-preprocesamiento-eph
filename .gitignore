@@ -10,11 +10,9 @@
 *_files/
 *_cache/
 /_site/
-informe.html
 
-# --- Datos crudos (se regeneran con R/01_descarga_datos.R) ---
-data/raw/*
-!data/raw/.gitkeep
+# --- Datos (se descargan al renderizar con eph::get_microdata) ---
+data/
 
 # --- Sistema operativo ---
 .DS_Store

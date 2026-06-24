@@ -1,0 +1,1473 @@
+---
+title: "Determinantes del salario y de la informalidad laboral en Argentina"
+subtitle: "Trabajo Final — Pre-procesamiento de datos"
+author: "Lautaro Sanfilippo"
+date: today
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-title: "Contenidos"
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    code-summary: "Ver código"
+    fig-align: center
+    fig-width: 8
+    fig-height: 5
+    embed-resources: true
+    smooth-scroll: true
+execute:
+  warning: false
+  message: false
+  echo: true
+  cache: false
+knitr:
+  opts_chunk:
+    autodep: true
+    dev: "png"
+    dpi: 150
+---
+
+```{r setup}
+#| include: false
+library(tidyverse)
+library(eph)
+library(knitr)
+library(kableExtra)
+
+options(knitr.kable.NA = "—")
+
+col_teal    <- "#006D77"
+col_aqua    <- "#83C5BE"
+col_alice   <- "#EDF6F9"
+col_almond  <- "#FFDDD2"
+col_tang    <- "#E29578"
+col_grid    <- "grey90"
+col_ref     <- "grey55"
+
+pal_bin  <- c(col_teal, col_tang)
+pal_sig  <- c("Significativo" = col_teal, "No significativo" = col_tang)
+
+theme_informe <- theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = col_grid, linewidth = 0.3),
+    plot.title       = element_text(face = "bold", size = 13),
+    plot.subtitle    = element_text(color = "grey35"),
+    axis.title       = element_text(color = "grey30"),
+    strip.text       = element_text(face = "bold", color = col_teal),
+    legend.position  = "bottom",
+    legend.title     = element_blank()
+  )
+theme_set(theme_informe)
+update_geom_defaults("bar",        list(fill = col_teal))
+update_geom_defaults("col",        list(fill = col_teal))
+update_geom_defaults("boxplot",    list(fill = col_aqua, color = "grey30"))
+update_geom_defaults("point",      list(color = col_teal))
+update_geom_defaults("pointrange", list(color = col_teal))
+
+tabla <- function(x, cap = NULL, digits = 2, ...) {
+  kbl(x, caption = cap, digits = digits, booktabs = TRUE,
+      format.args = list(decimal.mark = ",", big.mark = "."), ...) |>
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                  full_width = FALSE, position = "center")
+}
+
+ef  <- function(b) sprintf("%+.1f%%", 100 * (exp(b) - 1))
+efa <- function(b) sprintf("%.0f%%", abs(100 * (exp(b) - 1)))
+```
+
+# Introducción
+
+El mercado laboral argentino se caracteriza por una marcada **heterogeneidad
+salarial** y una elevada **informalidad** (empleo no registrado). Entender qué
+explica el salario de las personas y qué determina la probabilidad de trabajar en
+la informalidad es una de las preguntas centrales de la economía laboral, y tiene
+consecuencias directas de política pública: dónde concentrar la fiscalización, qué
+grupos quedan más desprotegidos, cuánto rinde realmente estudiar.
+
+Este trabajo aborda las dos preguntas sobre **microdatos reales** de la Encuesta
+Permanente de Hogares (EPH), recorriendo el flujo completo de pre-procesamiento,
+análisis exploratorio y modelado. Se ajustan dos modelos complementarios:
+
+- un **modelo de regresión lineal** para el (log) salario horario, que cuantifica
+  cuánto vale cada característica de la persona y su empleo, y
+- un **modelo de regresión logística** para la probabilidad de ser informal.
+
+La **informalidad** cumple un doble rol que vale la pena anticipar: es la
+**variable a explicar** en el modelo logístico y, al mismo tiempo, una
+**variable explicativa** del modelo de salarios, porque se espera que, a igualdad
+de las demás características, los trabajadores informales ganen menos.
+
+# Los datos
+
+## Fuente
+
+Los datos provienen de la **Encuesta Permanente de Hogares (EPH)** que elabora el
+**INDEC**. Es una encuesta continua que releva 31 aglomerados urbanos y publica
+microdatos abiertos y anonimizados con periodicidad trimestral. Se usa la **base
+de individuos del 4.º trimestre de 2025** (el último período disponible al momento
+de hacer el trabajo), que se descarga directamente desde el INDEC con el paquete
+[`eph`](https://holatam.github.io/eph/). De este modo el informe se reproduce de
+punta a punta: la descarga, la limpieza y todos los modelos corren dentro de este
+mismo documento.
+
+```{r descarga}
+#| cache: true
+cruda <- get_microdata(year = 2025, period = 4, type = "individual")
+```
+
+La base original tiene **`r format(nrow(cruda), big.mark=".")` personas** y
+**`r ncol(cruda)` variables**. A partir de ella se construye una base analítica
+restringida a la población de interés, que se describe a continuación.
+
+## Objetivos
+
+1. **Explicar el salario horario** de las personas asalariadas en función de su
+   capital humano y de las características de su empleo, midiendo en particular los
+   retornos a la educación, la brecha salarial de género y la penalización
+   asociada a la informalidad.
+2. **Modelar la probabilidad de informalidad laboral** con esas mismas
+   características y evaluar qué tan bien el modelo logra distinguir a un
+   trabajador formal de uno informal.
+
+## Las variables
+
+A partir de la base original se arma una base analítica con las siguientes
+variables (su construcción se detalla en la sección de pre-procesamiento):
+
+```{r tabla-variables}
+#| echo: false
+tribble(
+  ~Variable, ~Tipo, ~Rol, ~Definición,
+  "salario_horario", "Numérica continua", "Respuesta (lineal)", "Ingreso de la ocupación principal por hora: P21 / (horas × 4,33)",
+  "log_salario", "Numérica continua", "Respuesta (lineal)", "Logaritmo natural del salario horario",
+  "informal", "Categórica binaria", "Respuesta (logística) / Predictora (lineal)", "Empleo no registrado (sin descuento jubilatorio)",
+  "nivel_ed", "Categórica (6 niveles)", "Predictora", "Máximo nivel educativo alcanzado",
+  "edad", "Numérica discreta", "Predictora", "Edad en años (entra también al cuadrado)",
+  "sexo", "Categórica binaria", "Predictora", "Sexo registrado (Varón / Mujer)",
+  "tamano_estab", "Categórica (4 niveles)", "Predictora", "Tamaño del establecimiento",
+  "region", "Categórica (6 niveles)", "Predictora", "Región del país",
+  "sector", "Categórica (12 ramas)", "Exploratoria", "Rama de actividad (clasificación CAES-EPH)",
+  "horas", "Numérica", "Auxiliar", "Horas semanales trabajadas (definen el salario horario)"
+) |>
+  tabla(cap = "Variables de la base analítica.")
+```
+
+# Pre-procesamiento
+
+La población objetivo son las personas **asalariadas ocupadas de 18 a 65 años**.
+La restricción tiene un motivo claro: el salario horario solo está definido para
+quien percibe una remuneración, y la informalidad —medida por el descuento
+jubilatorio— es un concepto propio del empleo asalariado. El rango etario deja
+afuera a menores y a personas en edad jubilatoria, como es habitual al estudiar
+salarios.
+
+## Tratamiento de los datos faltantes
+
+El punto más delicado del pre-procesamiento son los **códigos especiales** de la
+EPH, que el software no reconoce como faltantes porque son números reales: un `999`
+de horas o un `-9` de ingreso contaminarían el análisis si se los tomara
+literalmente. La clave es que **no todos significan lo mismo**, así que se los
+trata según lo que representan.
+
+### Ingreso: "no responde" (−9) ≠ "no percibió ingreso" (0)
+
+Una distinción central es que el código `-9` (la persona **no quiso o no supo
+responder** su ingreso) **no es lo mismo** que el `0` (la persona **declara no
+haber percibido ingreso** en el período):
+
+- **`P21 == -9` (no respuesta):** es un **faltante genuino**. Al comparar las
+  características observables de quienes responden y quienes no (edad, sexo, nivel
+  educativo, horas), resultan casi idénticas, de modo que no se ve una dependencia
+  con lo observado. Aun así, no puede descartarse que quienes más ganan tiendan a
+  no declarar (un faltante no aleatorio), lo que se retoma en las limitaciones.
+  Como el ingreso es la **variable respuesta**, no corresponde imputarlo: se lo
+  trata por **análisis de casos completos**, es decir, se excluyen esos casos.
+- **`P21 == 0` (sin ingreso):** **no es un faltante.** Son ocupados que declararon
+  no percibir ingreso laboral en el período (en general con muy poca antigüedad en
+  el puesto). Constituyen **otra población**, ajena a una ecuación de salarios
+  (además su salario horario sería 0, indefinido en logaritmo), así que se los
+  **excluye**.
+
+### Flujo de casos
+
+El siguiente cuadro muestra cuántas observaciones se descartan en cada etapa y por
+qué. El conteo es secuencial, de modo que las bajas suman exactamente hasta la base
+final.
+
+```{r flujo}
+#| cache: true
+e0 <- cruda |> filter(ESTADO == 1, CAT_OCUP == 3, CH06 >= 18, CH06 <= 65)
+e1 <- e0 |> filter(P21 != -9)
+e2 <- e1 |> filter(P21 != 0)
+e3 <- e2 |> filter(!PP3E_TOT %in% c(0, 999), !is.na(PP3E_TOT))
+
+base <- e3 |>
+  organize_caes() |>
+  transmute(
+    salario_mensual = P21,
+    salario_horario = P21 / (PP3E_TOT * 4.33),
+    log_salario     = log(salario_horario),
+    informal = factor(if_else(PP07H == 2, "Informal", "Formal"),
+                      levels = c("Formal", "Informal")),
+    edad  = CH06,
+    horas = PP3E_TOT,
+    sexo  = factor(if_else(CH04 == 1, "Varón", "Mujer"), levels = c("Varón", "Mujer")),
+    nivel_ed = factor(case_when(
+      NIVEL_ED %in% c(7, 1) ~ "Primario incompleto o menos",
+      NIVEL_ED == 2 ~ "Primario completo",
+      NIVEL_ED == 3 ~ "Secundario incompleto",
+      NIVEL_ED == 4 ~ "Secundario completo",
+      NIVEL_ED == 5 ~ "Superior incompleto",
+      NIVEL_ED == 6 ~ "Superior completo"),
+      levels = c("Primario incompleto o menos", "Primario completo",
+                 "Secundario incompleto", "Secundario completo",
+                 "Superior incompleto", "Superior completo")),
+    region = factor(case_when(
+      REGION == 1 ~ "GBA", REGION == 40 ~ "NOA", REGION == 41 ~ "NEA",
+      REGION == 42 ~ "Cuyo", REGION == 43 ~ "Pampeana", REGION == 44 ~ "Patagonia"),
+      levels = c("GBA", "Pampeana", "NOA", "NEA", "Cuyo", "Patagonia")),
+    sector = caes_eph_label,
+    tamano_estab = factor(case_when(
+      PP04C == 0                 ~ "Casa particular",
+      PP04C %in% 1:5             ~ "Chico (hasta 5)",
+      PP04C %in% 6:8             ~ "Mediano (6 a 40)",
+      PP04C %in% 9:12            ~ "Grande (más de 40)",
+      PP04C == 99 & PP04C99 == 1 ~ "Chico (hasta 5)",
+      PP04C == 99 & PP04C99 == 2 ~ "Mediano (6 a 40)",
+      PP04C == 99 & PP04C99 == 3 ~ "Grande (más de 40)",
+      TRUE                       ~ NA_character_),
+      levels = c("Chico (hasta 5)", "Mediano (6 a 40)", "Grande (más de 40)",
+                 "Casa particular")))
+```
+
+```{r flujo-tabla}
+#| echo: false
+tibble(
+  Etapa = c("Asalariados ocupados de 18 a 65 años",
+            "(−) No responde el ingreso (−9)",
+            "(−) Declara no percibir ingreso (0)",
+            "(−) Horas no válidas (0 / 999 / faltante)",
+            "Base analítica final"),
+  Casos = c(nrow(e0), -(nrow(e0) - nrow(e1)), -(nrow(e1) - nrow(e2)),
+            -(nrow(e2) - nrow(e3)), nrow(e3))
+) |>
+  tabla(cap = "Flujo de casos hasta la base analítica final.", digits = 0)
+```
+
+```{r flujo-cifras}
+#| echo: false
+p_nr <- 100 * (nrow(e0) - nrow(e1)) / nrow(e0)
+n_na_tam <- sum(is.na(base$tamano_estab))
+p_na_tam <- 100 * n_na_tam / nrow(base)
+```
+
+La base analítica final tiene **`r format(nrow(base), big.mark=".")` asalariados**.
+Conviene notar que la no respuesta de ingresos es alta —cerca del
+**`r sprintf("%.0f%%", p_nr)`** de los asalariados—, un dato que pesa al
+interpretar el modelo de salarios. Hecha la limpieza, la única variable con
+faltantes es el tamaño del establecimiento, que se imputa a continuación.
+
+### Tamaño del establecimiento: códigos, recupero e imputación
+
+El tamaño del establecimiento es un predictor relevante (hay una **prima salarial
+por tamaño de empresa** y se asocia fuertemente con la formalidad), pero tiene no
+respuesta. Su tratamiento requirió leer con cuidado el cuestionario:
+
+- El código `99` (no sabe / no responde) aparecía en buena parte de los casos,
+  pero la EPH incluye una **pregunta de recupero** que captura un tramo grueso
+  (hasta 5 / de 6 a 40 / más de 40) para quien no precisó el tramo fino. Tras el
+  recupero, la no respuesta real baja a **`r sprintf("%.1f%%", p_na_tam)`**
+  (`r n_na_tam` casos).
+- El código `0` corresponde **únicamente a trabajadores de servicio doméstico**
+  (casas particulares), para quienes no aplica la idea de establecimiento. No es un
+  faltante: se lo trata como categoría propia (**"Casa particular"**).
+
+Como los `r n_na_tam` faltantes son **todos no domésticos**, imputarlos es un
+problema de tres niveles (Chico / Mediano / Grande). Para no atarse a un único
+método, se imputó con **KNN (k = 5)**, **missForest** e **imputación múltiple MICE
+(m = 5)**, usando como donantes las variables completas (incluida la respuesta
+`log_salario`, lo que ayuda a preservar la relación entre la predictora y el
+salario). Las distribuciones imputadas resultan **estables entre métodos** y
+parecidas a la distribución observada:
+
+```{r imputacion}
+#| cache: true
+suppressMessages({library(VIM); library(missForest); library(mice)})
+
+donantes <- c("log_salario", "informal", "sexo", "edad",
+              "nivel_ed", "region", "sector", "horas")
+niv3 <- c("Chico (hasta 5)", "Mediano (6 a 40)", "Grande (más de 40)")
+
+dom <- base |> filter(tamano_estab == "Casa particular")
+nd  <- base |> filter(is.na(tamano_estab) | tamano_estab != "Casa particular")
+nd$tamano3 <- droplevels(factor(nd$tamano_estab, levels = niv3))
+idx_na <- which(is.na(nd$tamano3))
+df <- nd[, c("tamano3", donantes)]
+
+set.seed(2026)
+imp_knn <- kNN(df, variable = "tamano3", dist_var = donantes, k = 5, imp_var = FALSE)$tamano3[idx_na]
+set.seed(2026)
+imp_mf  <- missForest(as.data.frame(df))$ximp$tamano3[idx_na]
+mice_out <- mice(df, m = 5, method = "polyreg", printFlag = FALSE, seed = 2026)
+imp_mice <- complete(mice_out, "long")$tamano3[complete(mice_out, "long")$.id %in% idx_na]
+
+imp_cmp <- rbind(
+  Observada    = 100 * as.numeric(prop.table(table(droplevels(na.omit(nd$tamano3))))),
+  KNN          = 100 * as.numeric(prop.table(table(imp_knn))),
+  missForest   = 100 * as.numeric(prop.table(table(imp_mf))),
+  `MICE (m=5)` = 100 * as.numeric(prop.table(table(imp_mice)))
+) |> as.data.frame()
+colnames(imp_cmp) <- niv3
+
+nd$tamano_estab <- as.character(nd$tamano_estab)
+nd$tamano_estab[idx_na] <- as.character(imp_knn)
+nd$tamano3 <- NULL
+datos <- bind_rows(nd, dom) |>
+  mutate(tamano_estab = factor(tamano_estab,
+    levels = c(niv3, "Casa particular")))
+```
+
+```{r imputacion-tabla}
+#| echo: false
+imp_cmp |>
+  rownames_to_column("Distribución") |>
+  tabla(cap = "Distribución (%) del tamaño del establecimiento: observada vs. imputada.",
+        digits = 1)
+```
+
+Las tres distribuciones imputadas son muy parecidas entre sí y consistentes con la
+observada, así que la elección del método casi no mueve la composición de la
+variable. Se adopta la imputación por **KNN** para el análisis. (Más adelante, en
+la validación cruzada, la imputación se rehace dentro del conjunto de entrenamiento
+para no filtrar información).
+
+### Efecto del método de imputación sobre la inferencia
+
+Que las distribuciones imputadas coincidan no alcanza: importa también el efecto
+sobre la **inferencia**, en particular sobre los **intervalos de confianza**. La
+imputación simple (KNN, missForest) trata los valores imputados como si fueran
+observados y, por lo tanto, **subestima la varianza** de los estimadores
+(intervalos demasiado angostos). La **imputación múltiple (MICE)** corrige esto con
+las reglas de Rubin, que suman a la incertidumbre habitual la variabilidad *entre*
+las distintas imputaciones. Para verlo, se ajusta el modelo de salarios bajo cada
+método y se comparan los coeficientes de la variable imputada (el tamaño) y el
+**ancho de sus intervalos al 95 %**:
+
+```{r inferencia}
+#| cache: true
+form_s <- log_salario ~ nivel_ed + edad + I(edad^2) + sexo + informal +
+            tamano_estab + region
+
+rehacer <- function(t3) {
+  nd2 <- nd
+  nd2$tamano_estab <- factor(as.character(t3), levels = c(niv3, "Casa particular"))
+  bind_rows(nd2, dom)
+}
+extraer <- function(m, metodo) {
+  s <- summary(m)$coefficients; ci <- confint.default(m)
+  f <- grep("tamano_estab", rownames(s))
+  data.frame(metodo, termino = gsub("tamano_estab", "", rownames(s)[f]),
+             est = s[f, 1], se = s[f, 2], ancho = ci[f, 2] - ci[f, 1],
+             row.names = NULL)
+}
+
+set.seed(2026)
+knn2 <- kNN(df, variable = "tamano3", dist_var = donantes, k = 5, imp_var = FALSE)$tamano3
+set.seed(2026)
+mf2  <- missForest(as.data.frame(df))$ximp$tamano3
+mice20 <- mice(df, m = 20, method = "polyreg", printFlag = FALSE, seed = 2026)
+
+fits <- lapply(1:20, function(i) lm(form_s, rehacer(complete(mice20, i)$tamano3)))
+coefs <- sapply(fits, coef); vars <- sapply(fits, \(f) diag(vcov(f)))
+Qbar <- rowMeans(coefs); Ubar <- rowMeans(vars); B <- apply(coefs, 1, var)
+se_r <- sqrt(Ubar + (1 + 1/20) * B)
+f <- grep("tamano_estab", names(Qbar))
+r_mice <- data.frame(metodo = "MICE (múltiple)", termino = gsub("tamano_estab", "", names(Qbar)[f]),
+                     est = Qbar[f], se = se_r[f], ancho = 2 * 1.96 * se_r[f], row.names = NULL)
+
+comp_inf <- bind_rows(
+  extraer(lm(form_s, base),          "Casos completos"),
+  extraer(lm(form_s, rehacer(knn2)), "KNN (simple)"),
+  extraer(lm(form_s, rehacer(mf2)),  "missForest (simple)"),
+  r_mice
+) |> filter(termino %in% c("Mediano (6 a 40)", "Grande (más de 40)"))
+```
+
+```{r inferencia-tabla}
+#| echo: false
+comp_inf |>
+  transmute(`Coeficiente (vs. Chico)` = termino, Método = metodo,
+            Estimación = est, `Error estándar` = se, `Ancho IC 95 %` = ancho) |>
+  arrange(`Coeficiente (vs. Chico)`, Método) |>
+  tabla(cap = "Efecto del método de imputación sobre la estimación y la precisión.",
+        digits = 4)
+```
+
+```{r inferencia-cifra}
+#| echo: false
+anchos <- comp_inf |> group_by(termino) |>
+  summarise(pct = 100 * (ancho[metodo == "MICE (múltiple)"] /
+                         ancho[metodo == "KNN (simple)"] - 1))
+pct_mice <- round(mean(anchos$pct), 1)
+```
+
+Las **estimaciones puntuales** son prácticamente iguales entre métodos. La
+diferencia aparece en la **precisión**: los intervalos más angostos son los de la
+imputación simple, mientras que **MICE produce los más anchos** (alrededor de
+`r sprintf("%.0f%%", pct_mice)` más) justamente porque incorpora la incertidumbre
+de la imputación; los casos completos quedan en un punto intermedio. La diferencia
+es chica porque solo se imputa una predictora y en pocos casos; con más faltantes,
+quedarse con la imputación simple subestimaría la varianza de forma mucho más
+peligrosa. En síntesis, usar KNN para el análisis principal es razonable y no
+cambia las conclusiones, pero queda documentada la advertencia metodológica.
+
+## Recodificación de categorías
+
+Varias variables se recodificaron a etiquetas legibles (todo dentro del bloque que
+construye la base): el **nivel educativo** unió "Sin instrucción" y "Primario
+incompleto" en una sola categoría por la baja frecuencia de la primera (quedan 6
+niveles); **sexo**, **región** e **informalidad** pasaron de códigos numéricos a
+etiquetas; y el **tamaño** y el **sector** se trataron como se explicó arriba.
+
+El nivel educativo, aunque tiene un orden natural, se trata como **factor no
+ordenado**: así se evita que el modelo genere contrastes polinómicos y cada nivel
+se interpreta de manera directa contra una categoría de referencia.
+
+## Variable derivada: el salario horario
+
+La respuesta del modelo lineal es ella misma una **variable derivada**: el salario
+horario combina el ingreso mensual de la ocupación principal (`P21`) con las horas
+semanales trabajadas (`PP3E_TOT`),
+
+$$\text{salario\_horario} = \frac{P21}{PP3E\_TOT \times 4{,}33},$$
+
+donde 4,33 ≈ semanas promedio por mes. De ella se deriva su logaritmo
+(`log_salario`), que se justifica en la sección siguiente. Al modelo se le agrega,
+además, el **término cuadrático de la edad** (`edad²`) para capturar el perfil no
+lineal entre salario y edad (la experiencia rinde, pero cada vez menos).
+
+## Transformación logarítmica
+
+El salario horario muestra la fuerte **asimetría a derecha** típica de los
+ingresos: muchos valores bajos y una cola larga de valores altos. El logaritmo la
+corrige notablemente.
+
+```{r asimetria}
+#| echo: false
+g1 <- function(x) { x <- x[is.finite(x)]; mean(((x - mean(x)) / sd(x))^3) }
+g2 <- function(x) { x <- x[is.finite(x)]; mean(((x - mean(x)) / sd(x))^4) - 3 }
+tibble(
+  Variable = c("Salario horario", "log(Salario horario)"),
+  Asimetría = c(g1(datos$salario_horario), g1(datos$log_salario)),
+  Curtosis  = c(g2(datos$salario_horario), g2(datos$log_salario))
+) |>
+  tabla(cap = "Asimetría y curtosis antes y después del logaritmo.")
+```
+
+```{r hist-transf}
+#| echo: false
+#| fig-cap: "Distribución del salario horario en escala original y logarítmica."
+datos |>
+  transmute(`Salario horario` = salario_horario,
+            `log(Salario horario)` = log_salario) |>
+  pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
+  ggplot(aes(valor)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 40,
+                 fill = col_aqua, color = "white") +
+  geom_density(color = col_teal, linewidth = 0.9) +
+  facet_wrap(~Escala, scales = "free") +
+  labs(x = NULL, y = "Densidad")
+```
+
+```{r qq-transf}
+#| echo: false
+#| fig-cap: "Gráficos Q-Q normales: en escala logarítmica los cuantiles se alinean."
+datos |>
+  transmute(`Salario horario` = salario_horario,
+            `log(Salario horario)` = log_salario) |>
+  pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
+  ggplot(aes(sample = valor)) +
+  stat_qq(alpha = .25, color = col_teal) +
+  stat_qq_line(color = col_tang, linewidth = 0.8) +
+  facet_wrap(~Escala, scales = "free") +
+  labs(x = "Cuantiles teóricos", y = "Cuantiles muestrales")
+```
+
+La asimetría pasa de alrededor de 4 a casi 0 y la curtosis cae de forma drástica:
+en escala logarítmica la distribución es prácticamente simétrica y mucho más
+cercana a la normal, como confirma el Q-Q. Con un tamaño muestral tan grande, los
+tests formales de normalidad rechazarían igual ante desvíos mínimos, por lo que la
+evaluación se apoya en los gráficos y en las medidas de forma. Se modela, entonces,
+**`log_salario`**, lo que además le da a los coeficientes una lectura
+**porcentual** muy cómoda para el análisis económico.
+
+## Escala de las variables
+
+Para la regresión por mínimos cuadrados **no hace falta estandarizar**: con
+predictoras mayormente categóricas y una continua (`edad`), los coeficientes se
+leen directamente en sus unidades. La estandarización se reservaría para comparar
+magnitudes entre predictoras o para métodos penalizados (Ridge/Lasso), sensibles a
+la escala, que se prueban más adelante.
+
+## Valores atípicos
+
+```{r boxplot-out}
+#| echo: false
+#| fig-cap: "Box-plots: los atípicos extremos de la escala original se atenúan en log."
+datos |>
+  transmute(`Salario horario` = salario_horario,
+            `log(Salario horario)` = log_salario) |>
+  pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
+  ggplot(aes(y = valor)) +
+  geom_boxplot(fill = col_aqua, outlier.color = col_tang, outlier.alpha = .4) +
+  facet_wrap(~Escala, scales = "free") +
+  labs(y = NULL) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+```{r conteo-out}
+#| echo: false
+reg <- function(x) { q <- quantile(x, c(.25, .75)); i <- 1.5 * diff(q)
+  sum(x < q[1] - i | x > q[2] + i) }
+n_out_orig <- reg(datos$salario_horario)
+n_out_log  <- reg(datos$log_salario)
+tibble(
+  Escala = c("Salario horario", "log(Salario horario)"),
+  `Atípicos (regla 1,5·RIC)` = c(n_out_orig, n_out_log),
+  `% del total` = 100 * c(n_out_orig, n_out_log) / nrow(datos)
+) |>
+  tabla(cap = "Cantidad de valores atípicos según la regla del rango intercuartílico.",
+        digits = 1)
+```
+
+Al mirar los salarios horarios más altos se ve que **muchos son un artefacto del
+denominador**: surgen de muy pocas horas declaradas (que inflan el cociente), no
+necesariamente de ingresos extraordinarios.
+
+```{r tabla-extremos}
+#| echo: false
+datos |> arrange(desc(salario_horario)) |>
+  transmute(`Salario mensual` = round(salario_mensual), Horas = horas,
+            `Salario horario` = round(salario_horario),
+            `Nivel educativo` = nivel_ed, Informal = informal) |>
+  head(6) |>
+  tabla(cap = "Los seis salarios horarios más altos: las pocas horas declaradas inflan el cociente.",
+        digits = 0)
+```
+
+**Decisión.** No se eliminan observaciones solo por ser atípicas: no hay certeza de
+que sean errores (podrían ser ingresos altos genuinos o empleos de pocas horas). El
+tratamiento principal es la **transformación logarítmica**, que reduce los atípicos
+de `r n_out_orig` a alrededor de `r n_out_log` y atenúa su influencia. Los casos que
+quedan se conservan y su impacto sobre el ajuste se evalúa formalmente en el
+diagnóstico del modelo (distancia de Cook, leverage); recién ahí, y con evidencia
+de influencia desmedida, se consideraría un tratamiento adicional.
+
+# Análisis exploratorio
+
+## Las variables a explicar
+
+La distribución de `log_salario` ya se mostró arriba (aproximadamente simétrica).
+En cuanto a la informalidad, algo más de un tercio de los asalariados es informal:
+
+```{r univ-informal}
+#| echo: false
+#| fig-cap: "Distribución de la informalidad laboral."
+datos |> count(informal) |> mutate(p = n / sum(n)) |>
+  ggplot(aes(informal, p, fill = informal)) +
+  geom_col(width = .6) +
+  geom_text(aes(label = scales::percent(p, accuracy = .1)), vjust = -0.4) +
+  scale_fill_manual(values = pal_bin) +
+  scale_y_continuous(labels = scales::percent, expand = expansion(c(0, .1))) +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+```
+
+## El salario según las características
+
+```{r biv-educ}
+#| echo: false
+#| fig-cap: "Salario (log) según nivel educativo."
+ggplot(datos, aes(nivel_ed, log_salario)) +
+  geom_boxplot() +
+  labs(x = NULL, y = "log(Salario horario)") +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+El salario crece de manera monótona con el nivel educativo, lo que anticipa
+**retornos positivos a la educación**.
+
+```{r biv-sexo-informal}
+#| echo: false
+#| fig-cap: "Salario (log) según sexo y condición de informalidad."
+ggplot(datos, aes(sexo, log_salario, fill = informal)) +
+  geom_boxplot() +
+  scale_fill_manual(values = pal_bin) +
+  labs(x = NULL, y = "log(Salario horario)")
+```
+
+```{r biv-edu-sexo-cifras}
+#| echo: false
+sup <- datos |> mutate(superior = nivel_ed %in% c("Superior incompleto", "Superior completo")) |>
+  group_by(sexo) |> summarise(p = 100 * mean(superior)) |> deframe()
+```
+
+Acá aparece con claridad la **penalización por informalidad**: los formales ganan
+bastante más que los informales, en ambos sexos. En cambio, la **brecha de género
+se ve casi nula a nivel marginal** (las medianas por sexo casi coinciden). El
+resultado, llamativo a primera vista, se explica porque las mujeres de la muestra
+tienen en promedio **mayor nivel educativo** (`r sprintf("%.0f%%", sup["Mujer"])`
+con estudios superiores frente a `r sprintf("%.0f%%", sup["Varón"])` de los
+varones), lo que compensa y **enmascara** la brecha cuando se mira todo junto. Como
+se ve enseguida, al condicionar por educación la brecha sí aparece.
+
+```{r biv-tamano}
+#| echo: false
+#| fig-cap: "Salario (log) según tamaño del establecimiento."
+ggplot(datos, aes(tamano_estab, log_salario)) +
+  geom_boxplot() +
+  labs(x = NULL, y = "log(Salario horario)") +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+Se ve la **prima por tamaño**: a mayor tamaño del establecimiento, mayor salario.
+El servicio doméstico ("Casa particular") muestra los salarios más bajos.
+
+## La forma de la relación salario–edad
+
+Antes de meter la edad al cuadrado en el modelo conviene verificar que la relación
+lo amerite. El perfil es **cóncavo** (crece, llega a un máximo y se aplana), como
+muestra el suavizado:
+
+```{r biv-edad}
+#| echo: false
+#| fig-cap: "Salario (log) según edad, con suavizado loess: perfil cóncavo."
+ggplot(datos, aes(edad, log_salario)) +
+  geom_point(alpha = .04) +
+  geom_smooth(method = "loess", color = col_tang, fill = col_almond, se = TRUE) +
+  labs(x = "Edad (años)", y = "log(Salario horario)")
+```
+
+El contraste formal confirma que la **especificación cuadrática** mejora de manera
+significativa sobre la lineal, aun controlando por el resto de las variables,
+mientras que el término cúbico aporta apenas:
+
+```{r anova-edad}
+#| echo: false
+base_f <- log_salario ~ nivel_ed + sexo + informal + region + tamano_estab
+a1 <- lm(update(base_f, . ~ . + edad), datos)
+a2 <- lm(update(base_f, . ~ . + edad + I(edad^2)), datos)
+a3 <- lm(update(base_f, . ~ . + edad + I(edad^2) + I(edad^3)), datos)
+anova(a1, a2, a3) |>
+  as.data.frame() |>
+  mutate(Modelo = c("+ edad", "+ edad²", "+ edad³"), .before = 1) |>
+  tabla(cap = "Comparación de especificaciones de la edad (controlando por el resto).",
+        digits = c(0, 0, 1, 0, 1, 2, 4))
+```
+
+```{r pico-edad}
+#| echo: false
+b <- coef(a2)
+edad_pico <- round(-b["edad"] / (2 * b["I(edad^2)"]))
+```
+
+La cuadrática es altamente significativa y, aunque la cúbica también lo es, su
+aporte es ínfimo; por **parsimonia e interpretabilidad** se elige la cuadrática.
+Según ella, el salario alcanza su máximo alrededor de los **`r edad_pico` años**, un
+valor económicamente razonable (la experiencia rinde con rendimientos
+decrecientes). Queda justificado incluir `edad²`.
+
+## La informalidad según las características
+
+```{r biv-informalidad}
+#| echo: false
+#| fig-cap: "Tasa de informalidad según nivel educativo y tamaño del establecimiento."
+bind_rows(
+  datos |> group_by(grupo = nivel_ed) |> summarise(tasa = mean(informal == "Informal")) |> mutate(var = "Nivel educativo"),
+  datos |> group_by(grupo = tamano_estab) |> summarise(tasa = mean(informal == "Informal")) |> mutate(var = "Tamaño del establecimiento")
+) |>
+  ggplot(aes(grupo, tasa)) +
+  geom_col(fill = col_tang) +
+  scale_y_continuous(labels = scales::percent) +
+  facet_wrap(~var, scales = "free_x", ncol = 1) +
+  labs(x = NULL, y = "Tasa de informalidad") +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+La informalidad **baja con el nivel educativo** y es mucho menor en
+establecimientos grandes (y máxima en el servicio doméstico). Esto anticipa el peso
+que tendrán estas variables en el modelo logístico.
+
+## La brecha de género por nivel educativo
+
+```{r multi-genero-educ}
+#| echo: false
+#| fig-cap: "Salario (log) por nivel educativo y sexo."
+ggplot(datos, aes(nivel_ed, log_salario, fill = sexo)) +
+  geom_boxplot() +
+  scale_fill_manual(values = pal_bin) +
+  labs(x = NULL, y = "log(Salario horario)") +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+Acá **sí** se aprecia la brecha: **dentro de cada nivel educativo los varones ganan
+más que las mujeres**. La brecha es entonces un fenómeno **condicional**: a nivel
+agregado quedaba tapada por la mayor educación femenina, pero emerge al comparar a
+igualdad de nivel educativo. Esto motiva con fuerza el enfoque multivariado y
+sugiere explorar una posible **interacción** educación × sexo en el modelo.
+
+# Modelo de regresión lineal
+
+## Especificación y ajuste
+
+Se plantea un modelo de **regresión lineal múltiple** para el logaritmo del salario
+horario:
+
+$$
+\log(\text{salario}_i) = \beta_0 + \beta_1\,\text{edad}_i + \beta_2\,\text{edad}_i^2
++ \delta\,\text{mujer}_i + \theta\,\text{informal}_i
++ \boldsymbol{\gamma}'\mathbf{educ}_i
++ \boldsymbol{\tau}'\mathbf{tam}_i
++ \boldsymbol{\rho}'\mathbf{reg}_i + \varepsilon_i.
+$$
+
+Las variables `mujer` e `informal` son **indicadoras** (valen 1 o 0). La educación,
+el tamaño y la región son categóricas que entran como **conjuntos de indicadoras**:
+cada coeficiente mide la diferencia respecto de una **categoría de referencia**
+—*Primario incompleto o menos* (educación), *Varón* (sexo), *Formal* (registro),
+*Chico (hasta 5)* (tamaño) y *GBA* (región)—. El modelo se ajusta así:
+
+```{r lineal-base}
+m_base <- lm(log_salario ~ nivel_ed + edad + I(edad^2) + sexo + informal +
+               tamano_estab + region, data = datos)
+```
+
+```{r lineal-coef}
+#| echo: false
+co <- summary(m_base)$coefficients
+data.frame(
+  Término = rownames(co),
+  Estimación = co[, 1], `Error estándar` = co[, 2],
+  t = co[, 3], `p-valor` = co[, 4],
+  check.names = FALSE
+) |>
+  tabla(cap = sprintf("Ajuste inicial por mínimos cuadrados. R² = %.3f; R² ajustado = %.3f.",
+                      summary(m_base)$r.squared, summary(m_base)$adj.r.squared),
+        digits = 4)
+```
+
+Como la respuesta es el **logaritmo** del salario, un coeficiente $\beta$ se traduce
+en un **cambio porcentual** del salario igual a $(e^{\beta}-1)\times 100\,\%$,
+**manteniendo todo lo demás constante**. Todos los coeficientes tienen el signo
+esperado y la mayoría son significativos; la lectura cuantitativa detallada, con
+intervalos de confianza y solo de los efectos significativos, se presenta una vez
+validados los supuestos. El $R^2$ ronda
+**`r round(summary(m_base)$r.squared, 2)`**, un valor habitual para ecuaciones de
+salarios con datos de corte transversal.
+
+## La brecha de género: del dato marginal al condicional
+
+En el análisis exploratorio aparecía una aparente paradoja: la brecha de género se
+veía **casi nula** al mirar el total, pero **visible al separar por nivel
+educativo**. ¿Es contradictorio que ahora el sexo sí sea significativo? No, y el
+modelo permite entender por qué. La tabla muestra cómo cambia el coeficiente de
+*Mujer* a medida que se agregan controles:
+
+```{r sexo-secuencia}
+#| echo: false
+mods <- list(
+  "Solo sexo (marginal)" = lm(log_salario ~ sexo, datos),
+  "+ educación"          = lm(log_salario ~ sexo + nivel_ed, datos),
+  "+ edad"               = lm(log_salario ~ sexo + nivel_ed + edad + I(edad^2), datos),
+  "Modelo completo"      = m_base)
+do.call(rbind, lapply(names(mods), function(nm) {
+  co <- summary(mods[[nm]])$coefficients["sexoMujer", ]
+  data.frame(Especificación = nm, `Coef. Mujer` = co[1],
+             `Error estándar` = co[2], `p-valor` = co[4],
+             `Efecto aprox.` = ef(co[1]), check.names = FALSE)
+})) |>
+  tabla(cap = "Coeficiente de 'Mujer' según los controles incluidos.", digits = 4)
+```
+
+Sin controles, la brecha es de apenas ~3 %. **Al sumar la educación, se triplica**:
+como las mujeres de la muestra están más educadas, su mayor calificación
+**enmascaraba** la brecha a nivel agregado. Es un caso de **supresión**: una
+variable (educación) correlacionada positivamente tanto con ser mujer como con el
+salario ocultaba el efecto real del sexo; al controlarla, la brecha aparece. En el
+modelo completo, al sumar informalidad, tamaño y región, la brecha se modera pero
+**sigue siendo significativa**: es la parte de la diferencia salarial que **no**
+explican las características observadas.
+
+Queda una pregunta distinta: ¿la brecha *cambia* entre niveles educativos? Eso es lo
+que evalúa el término de interacción educación × sexo:
+
+```{r lineal-interac}
+#| echo: false
+m_int <- update(m_base, . ~ . + nivel_ed:sexo)
+anova(m_base, m_int) |>
+  as.data.frame() |>
+  mutate(Modelo = c("Aditivo", "+ interacción educación × sexo"), .before = 1) |>
+  tabla(cap = "Test de la interacción educación × sexo.", digits = c(0, 0, 1, 0, 1, 2, 4))
+```
+
+La interacción **no es significativa**: la brecha **existe pero es aproximadamente
+constante** entre niveles educativos. Por eso alcanza con una única brecha de
+género —el modelo aditivo—.
+
+## Selección de variables
+
+Se aplica una selección **paso a paso en ambas direcciones** con los criterios
+**AIC** y **BIC**. El procedimiento parte del modelo completo (con la interacción) y
+en cada paso evalúa tanto quitar como agregar términos, quedándose con el cambio que
+más mejora el criterio. En lugar de volcar la traza de la consola, se resume en una
+tabla los pasos efectivos:
+
+```{r stepwise}
+#| code-fold: true
+full <- lm(log_salario ~ nivel_ed * sexo + edad + I(edad^2) + informal +
+             tamano_estab + region, data = datos)
+sel_aic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = 2)
+sel_bic <- MASS::stepAIC(full, direction = "both", trace = FALSE, k = log(nrow(datos)))
+```
+
+```{r stepwise-pasos}
+#| echo: false
+sel_aic$anova |>
+  as.data.frame() |>
+  transmute(Paso = ifelse(trimws(as.character(Step)) == "", "Modelo inicial",
+                          trimws(as.character(Step))),
+            `g.l.` = Df, Desviación = Deviance,
+            `g.l. residuales` = `Resid. Df`, AIC = AIC) |>
+  tabla(cap = "Pasos de la selección por AIC (dirección: ambas).", digits = 1)
+```
+
+El único movimiento que mejora el criterio es **quitar la interacción**; después, ni
+eliminar variables ni volver a agregar la interacción mejora nada, y el algoritmo se
+detiene. Como verificación, al **quitar cada término de a uno** del modelo aditivo,
+todos empeoran significativamente el ajuste, lo que confirma que **ninguna variable
+sobra**:
+
+```{r drop1-tabla}
+#| echo: false
+drop1(m_base, test = "F") |> as.data.frame() |>
+  rownames_to_column("Término") |>
+  filter(Término != "<none>") |>
+  transmute(Término, `g.l.` = Df, `Suma de cuad.` = `Sum of Sq`,
+            F = `F value`, `p-valor` = `Pr(>F)`) |>
+  tabla(cap = "Eliminación de un término por vez sobre el modelo aditivo.", digits = 3)
+```
+
+```{r lineal-comparacion}
+#| echo: false
+comp <- function(m, nom) data.frame(
+  Modelo = nom, `N.º coef.` = length(coef(m)),
+  `R² aj.` = summary(m)$adj.r.squared,
+  AIC = AIC(m), BIC = BIC(m), check.names = FALSE)
+rbind(comp(m_base, "Aditivo (base)"), comp(m_int, "Con interacción"),
+      comp(sel_aic, "Selección AIC"), comp(sel_bic, "Selección BIC")) |>
+  tabla(cap = "Comparación de modelos por distintos criterios.", digits = c(0, 0, 4, 1, 1))
+```
+
+Tanto **AIC como BIC eligen el mismo modelo aditivo**: retienen todas las
+predictoras y descartan únicamente la interacción. Se adopta, entonces, el **modelo
+aditivo** como modelo de trabajo.
+
+### Regresión penalizada (Ridge y Lasso)
+
+Como **método alternativo de ajuste**, se prueba la **regresión penalizada**, útil
+cuando hay mucha multicolinealidad o demasiadas predictoras. Se ajustan **Ridge** y
+**Lasso** eligiendo la penalización $\lambda$ por validación cruzada y se compara su
+error de predicción contra el de mínimos cuadrados:
+
+```{r penalizada}
+#| echo: true
+library(glmnet)
+Xp <- model.matrix(formula(m_base), datos)[, -1]
+yp <- datos$log_salario
+set.seed(2026)
+cvl <- cv.glmnet(Xp, yp, alpha = 1)
+cvr <- cv.glmnet(Xp, yp, alpha = 0)
+nz  <- sum(as.matrix(coef(cvl, s = "lambda.min"))[-1, 1] != 0)
+set.seed(2026); fk <- sample(rep(1:10, length.out = nrow(datos)))
+mse_ols <- mean(sapply(1:10, function(i) {
+  mm <- lm(formula(m_base), datos[fk != i, ])
+  mean((datos$log_salario[fk == i] - predict(mm, datos[fk == i, ]))^2)
+}))
+```
+
+```{r penalizada-tabla}
+#| echo: false
+data.frame(
+  Método = c("Mínimos cuadrados", "Ridge", "Lasso"),
+  `λ (validación cruzada)` = c("—", sprintf("%.4f", cvr$lambda.min), sprintf("%.5f", cvl$lambda.min)),
+  `Variables retenidas` = c(ncol(Xp), ncol(Xp), nz),
+  `Error de predicción (CV)` = round(c(mse_ols,
+      cvr$cvm[cvr$lambda == cvr$lambda.min],
+      cvl$cvm[cvl$lambda == cvl$lambda.min]), 4),
+  check.names = FALSE
+) |>
+  tabla(cap = "Regresión penalizada vs. mínimos cuadrados.", digits = 4)
+```
+
+El $\lambda$ óptimo de Lasso es prácticamente nulo y **retiene todas las
+variables**, mientras que el error de predicción es **equivalente** al de mínimos
+cuadrados (Ridge resulta incluso algo peor). La penalización **no aporta**: como
+había muchos más casos que predictoras y sin multicolinealidad relevante, no hay
+varianza que reducir ni variables que descartar. Sumado a que los coeficientes
+penalizados no se interpretan en términos del problema, se mantiene el **modelo de
+mínimos cuadrados** como modelo final.
+
+## Diagnóstico de los supuestos
+
+La validez de la inferencia depende de los supuestos sobre los errores, que se
+evalúan a partir de los **residuos** del modelo aditivo.
+
+**Independencia.** Los datos son un **corte transversal** (un único trimestre), así
+que no hay estructura temporal que genere autocorrelación. Sí cabe señalar que la
+EPH tiene un diseño por conglomerados que aquí no se modela (se retoma en las
+limitaciones).
+
+**Linealidad y homocedasticidad.** El gráfico de residuos contra valores ajustados
+no muestra curvatura (la linealidad, ayudada por el log y `edad²`, es razonable),
+pero sí cierta variación no constante:
+
+```{r diag-resid}
+#| echo: false
+#| fig-cap: "Residuos vs. valores ajustados."
+data.frame(ajustado = fitted(m_base), residuo = resid(m_base)) |>
+  ggplot(aes(ajustado, residuo)) +
+  geom_point(alpha = .05) +
+  geom_smooth(se = FALSE, color = col_tang) +
+  geom_hline(yintercept = 0, color = col_ref) +
+  labs(x = "Valores ajustados", y = "Residuos")
+```
+
+```{r diag-bp}
+#| echo: true
+lmtest::bptest(m_base)
+```
+
+El test de **Breusch-Pagan rechaza** la homocedasticidad: hay
+**heterocedasticidad**, algo habitual en datos salariales. Esto no sesga los
+coeficientes, pero **invalida los errores estándar clásicos**, así que más abajo se
+usan errores estándar robustos.
+
+**Normalidad de los residuos.**
+
+```{r diag-qq}
+#| echo: false
+#| fig-cap: "Q-Q normal de los residuos del modelo."
+ggplot(data.frame(r = resid(m_base)), aes(sample = r)) +
+  stat_qq(alpha = .1, color = col_teal) +
+  stat_qq_line(color = col_tang, linewidth = 0.8) +
+  labs(x = "Cuantiles teóricos", y = "Residuos")
+```
+
+```{r diag-norm}
+#| echo: true
+r <- resid(m_base)
+c(Asimetría = mean(((r - mean(r)) / sd(r))^3),
+  `Curtosis (exceso)` = mean(((r - mean(r)) / sd(r))^4) - 3)
+```
+
+Los residuos son **simétricos** pero con **colas algo más pesadas** que la normal.
+Un test formal rechazaría la normalidad, pero con un tamaño muestral tan grande
+detecta desvíos mínimos; como hay más de diez mil observaciones, por el Teorema
+Central del Límite la distribución de los estimadores es aproximadamente normal y la
+inferencia se mantiene válida.
+
+**Observaciones influyentes.** Se evalúan con la distancia de Cook y el leverage:
+
+```{r diag-influ}
+#| echo: false
+#| fig-cap: "Distancia de Cook por observación (ninguna se acerca al umbral 1)."
+ck <- cooks.distance(m_base)
+ggplot(data.frame(i = seq_along(ck), ck = ck), aes(i, ck)) +
+  geom_segment(aes(xend = i, yend = 0), alpha = .3, color = col_teal) +
+  labs(x = "Observación", y = "Distancia de Cook")
+```
+
+```{r diag-influ-tab}
+#| echo: false
+n <- nrow(datos); p <- length(coef(m_base)); hv <- hatvalues(m_base)
+data.frame(
+  Criterio = c("Distancia de Cook > 1", "Leverage > 2p/n", "Máx. distancia de Cook"),
+  Valor = c(sum(ck > 1), sum(hv > 2 * p / n), max(ck))
+) |>
+  tabla(cap = "Diagnóstico de observaciones influyentes.", digits = 4)
+```
+
+**Ningún punto es influyente**: la distancia de Cook máxima está muy por debajo de
+1. Esto **confirma la decisión del pre-procesamiento**: los salarios atípicos que se
+conservaron no distorsionan el ajuste (el logaritmo atenúa su efecto), así que no
+corresponde eliminarlos.
+
+**Multicolinealidad.**
+
+```{r diag-vif}
+#| echo: false
+v <- car::vif(m_base)
+data.frame(Variable = rownames(v), GVIF = v[, 1],
+           `GVIF^(1/2·gl)` = v[, 3], check.names = FALSE, row.names = NULL) |>
+  tabla(cap = "Factores de inflación de la varianza (GVIF).", digits = 2)
+```
+
+El único valor alto es el de `edad` y `edad²`, algo **esperable y benigno**: están
+correlacionados por construcción (es el mismo predictor al cuadrado) y no afecta ni
+las predicciones ni el contraste conjunto del efecto de la edad. El resto no
+presenta multicolinealidad.
+
+**Errores estándar robustos.** Por la heterocedasticidad, se reestiman los errores
+con la corrección de White (HC1). Como muestra la tabla, son **muy parecidos** a los
+clásicos y **ninguna conclusión cambia**:
+
+```{r diag-robusto}
+#| echo: false
+rob <- lmtest::coeftest(m_base, vcov = sandwich::vcovHC(m_base, type = "HC1"))
+keep <- c("nivel_edSuperior completo", "sexoMujer", "informalInformal",
+          "tamano_estabGrande (más de 40)", "regionPatagonia")
+data.frame(
+  Variable = c("Superior completo", "Mujer", "Informal", "Tamaño grande", "Patagonia"),
+  `SE clásico` = summary(m_base)$coefficients[keep, 2],
+  `SE robusto` = rob[keep, 2],
+  `p robusto` = rob[keep, 4], check.names = FALSE, row.names = NULL
+) |>
+  tabla(cap = "Errores estándar clásicos vs. robustos (HC1), coeficientes seleccionados.",
+        digits = 4)
+```
+
+En síntesis, el modelo es adecuado: la única violación relevante es la
+heterocedasticidad, que se corrige con errores robustos sin alterar las
+conclusiones; el apartamiento de la normalidad es inocuo dado el tamaño muestral, y
+no hay observaciones influyentes ni multicolinealidad problemática.
+
+## Modelo final e interpretación
+
+El modelo final es el **modelo aditivo** seleccionado, estimado con **errores
+estándar robustos (HC1)**. Explica un
+**`r round(100 * summary(m_base)$adj.r.squared)` %** de la variabilidad del
+log-salario. La tabla resume el **efecto porcentual** de cada característica sobre el
+salario, con sus intervalos de confianza al 95 %, manteniendo todo lo demás
+constante:
+
+```{r final-tabla}
+#| echo: false
+V  <- sandwich::vcovHC(m_base, type = "HC1")
+ci <- lmtest::coefci(m_base, vcov. = V)
+b  <- coef(m_base)
+filas <- !grepl("Intercept|edad", names(b))
+nombres <- c("Educación: Primario completo", "Educación: Secundario incompleto",
+  "Educación: Secundario completo", "Educación: Superior incompleto",
+  "Educación: Superior completo", "Sexo: Mujer", "Informalidad: Informal",
+  "Tamaño: Mediano", "Tamaño: Grande", "Tamaño: Casa particular",
+  "Región: Pampeana", "Región: NOA", "Región: NEA", "Región: Cuyo",
+  "Región: Patagonia")
+data.frame(
+  Variable = nombres,
+  `Efecto (%)` = 100 * (exp(b[filas]) - 1),
+  `IC 95 % inf. (%)` = 100 * (exp(ci[filas, 1]) - 1),
+  `IC 95 % sup. (%)` = 100 * (exp(ci[filas, 2]) - 1),
+  check.names = FALSE, row.names = NULL
+) |>
+  tabla(cap = "Modelo final: efecto porcentual sobre el salario (IC 95 % robustos). Referencias: Primario incompleto o menos, Varón, Formal, Chico (hasta 5), GBA.",
+        digits = 1)
+```
+
+```{r final-forest}
+#| echo: false
+#| fig-height: 6
+#| fig-cap: "Efecto porcentual sobre el salario con IC 95 % robustos. En anaranjado, los efectos no significativos (su intervalo contiene el 0)."
+sig <- !(ci[filas, 1] < 0 & ci[filas, 2] > 0)
+data.frame(
+  variable = factor(nombres, levels = rev(nombres)),
+  efecto = 100 * (exp(b[filas]) - 1),
+  low    = 100 * (exp(ci[filas, 1]) - 1),
+  high   = 100 * (exp(ci[filas, 2]) - 1),
+  Significatividad = factor(ifelse(sig, "Significativo", "No significativo"),
+                            levels = c("Significativo", "No significativo"))) |>
+  ggplot(aes(efecto, variable, color = Significatividad)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = col_ref) +
+  geom_pointrange(aes(xmin = low, xmax = high)) +
+  scale_color_manual(values = pal_sig) +
+  labs(x = "Efecto sobre el salario (%)", y = NULL)
+```
+
+El gráfico permite leer de un vistazo la magnitud, la precisión y la
+significatividad de cada efecto. A continuación se interpretan **solo los
+significativos**:
+
+**Retornos a la educación.** El salario crece de forma **monótona** con el nivel
+educativo. El primer escalón (*Primario completo*) **no es significativo**: no hay
+evidencia de que se distinga de quienes tienen, a lo sumo, primario incompleto. A
+partir de *Secundario incompleto* todos lo son: completar el secundario se asocia a
+un salario **~22 % mayor** y el superior completo a uno **~78 % mayor** respecto de
+la referencia. Es, junto con la informalidad, el determinante más fuerte del
+salario.
+
+**Perfil de edad.** El efecto de la edad es **cóncavo** (positivo en `edad`,
+negativo en `edad²`): el salario sube con la edad —reflejo de la experiencia
+acumulada— a una tasa decreciente, llega a su máximo cerca de los **`r edad_pico`
+años** y después baja levemente.
+
+**Brecha de género.** A igualdad de educación, edad, informalidad, tamaño y región,
+las **mujeres ganan alrededor de `r efa(b["sexoMujer"])` menos** que los varones. Es
+una brecha **condicional** y significativa: la parte de la diferencia salarial que
+no explican las características observadas.
+
+**Penalización por informalidad.** Los trabajadores **informales ganan alrededor de
+`r efa(b["informalInformal"])` menos** que los formales de iguales
+características. Es el efecto individual más grande del modelo y muestra el costo
+salarial de no estar registrado. (Esta variable es, además, la respuesta del modelo
+de la sección siguiente).
+
+**Prima por tamaño.** Respecto de los establecimientos chicos, los medianos pagan
+**~11 % más** y los grandes **~20 % más**; el servicio doméstico queda por debajo de
+los chicos.
+
+**Diferencias regionales.** Tomando el GBA como referencia, el **NOA, NEA y Cuyo
+pagan menos** (entre ~17 % y ~24 %), mientras que la **Patagonia paga ~27 % más**,
+consistente con su mayor costo de vida y su estructura productiva.
+
+**En términos del problema.** El modelo cumple el primer objetivo: confirma
+**retornos crecientes a la educación**, un **perfil cóncavo de edad**, y señala como
+factores de mayor peso a la **informalidad** y a la **educación superior**. Persiste
+una **brecha de género** que las demás variables no explican, y se verifican primas
+por **tamaño** y diferencias **regionales** marcadas.
+
+# Modelo de regresión logística
+
+## Especificación y ajuste
+
+Se modela la probabilidad de que una persona ocupada tenga un **empleo informal**
+(no registrado) mediante regresión logística (enlace *logit*), tomando "Informal"
+como el resultado a predecir. Se usan las mismas predictoras que en el modelo de
+salarios **excepto el salario**: la informalidad es una *causa* del salario y no al
+revés, de modo que incluirlo sería controlar por una consecuencia y distorsionaría
+las estimaciones.
+
+```{r log-fit}
+g <- glm(informal ~ nivel_ed + edad + I(edad^2) + sexo + tamano_estab + region,
+         family = binomial(link = "logit"), data = datos)
+```
+
+## Interpretación en razones de odds
+
+Exponenciando cada coeficiente se obtiene la **razón de odds (OR)**: por cuánto se
+multiplica la *chance* de ser informal ante esa característica, respecto de la
+categoría de referencia y manteniendo lo demás constante. Un OR < 1 indica menor
+chance de informalidad; un OR > 1, mayor.
+
+```{r log-or-tabla}
+#| echo: false
+or <- exp(cbind(OR = coef(g), confint.default(g)))
+filas <- !grepl("Intercept|edad", names(coef(g)))
+nombres_g <- c("Educación: Primario completo", "Educación: Secundario incompleto",
+  "Educación: Secundario completo", "Educación: Superior incompleto",
+  "Educación: Superior completo", "Sexo: Mujer", "Tamaño: Mediano",
+  "Tamaño: Grande", "Tamaño: Casa particular", "Región: Pampeana",
+  "Región: NOA", "Región: NEA", "Región: Cuyo", "Región: Patagonia")
+data.frame(Variable = nombres_g, OR = or[filas, 1],
+           `IC 95 % inf.` = or[filas, 2],
+           `IC 95 % sup.` = or[filas, 3],
+           check.names = FALSE, row.names = NULL) |>
+  tabla(cap = "Razones de odds de informalidad (IC 95 %). Referencias: Primario incompleto o menos, Varón, Chico (hasta 5), GBA.",
+        digits = 3)
+```
+
+```{r log-or-forest}
+#| echo: false
+#| fig-height: 5.5
+#| fig-cap: "Razones de odds de informalidad con IC 95 % (escala logarítmica). En anaranjado, los efectos no significativos (su intervalo contiene el 1)."
+sig_g <- !(or[filas, 2] < 1 & or[filas, 3] > 1)
+data.frame(variable = factor(nombres_g, levels = rev(nombres_g)),
+           OR = or[filas, 1], low = or[filas, 2], high = or[filas, 3],
+           Significatividad = factor(ifelse(sig_g, "Significativo", "No significativo"),
+                                     levels = c("Significativo", "No significativo"))) |>
+  ggplot(aes(OR, variable, color = Significatividad)) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = col_ref) +
+  geom_pointrange(aes(xmin = low, xmax = high)) +
+  scale_x_log10() +
+  scale_color_manual(values = pal_sig) +
+  labs(x = "Razón de odds (escala log)", y = NULL)
+```
+
+La edad entra de forma **cuadrática**, así que su razón de odds "por año" no es
+directamente interpretable y por eso se la dejó fuera de la tabla y del gráfico
+anteriores (su significatividad se verifica más abajo). Su efecto se aprecia mejor
+mirando la **probabilidad estimada de informalidad a lo largo de la edad**,
+promediando el resto de las características sobre la muestra:
+
+```{r log-edad}
+#| echo: false
+#| fig-cap: "Probabilidad estimada de informalidad según la edad (promediando el resto de las características sobre la muestra). La línea punteada marca el mínimo."
+b_g <- coef(g)
+edad_min <- round(-b_g["edad"] / (2 * b_g["I(edad^2)"]))
+edades <- 18:65
+prob_edad <- sapply(edades, function(a) {
+  d <- datos; d$edad <- a
+  mean(predict(g, d, type = "response"))
+})
+ggplot(data.frame(edad = edades, prob = prob_edad), aes(edad, prob)) +
+  geom_line(color = col_teal, linewidth = 1) +
+  geom_vline(xintercept = edad_min, linetype = "dashed", color = col_ref) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Edad (años)", y = "Probabilidad de informalidad")
+```
+
+Interpretando **solo los efectos significativos**:
+
+- **Tamaño del establecimiento** (ref.: *Chico*): es el factor dominante. En los
+  establecimientos **grandes la chance de informalidad es alrededor de un 94 %
+  menor** y en los medianos cerca de un 84 % menor; el **servicio doméstico** tiene
+  más chance que los chicos.
+- **Educación** (ref.: *Primario incompleto o menos*): a mayor nivel, menor chance
+  de informalidad; con *Superior completo* la chance es alrededor de **un 81 %
+  menor**. El efecto es significativo a partir de *Secundario completo*.
+- **Edad**: como muestra la figura anterior, la informalidad **decrece marcadamente
+  con la edad** —los jóvenes son mucho más informales— hasta alcanzar su mínimo
+  cerca de los **`r edad_min` años**, con un leve repunte posterior (efecto
+  convexo). Tanto `edad` como `edad²` son significativas (se verifica más abajo).
+- **Región** (ref.: *GBA*): mayor informalidad en **Cuyo** y **NOA**; menor en
+  **Patagonia** y **Pampeana**.
+- **Sexo**: **no significativo**. A igualdad del resto, varones y mujeres tienen una
+  chance de informalidad similar.
+
+## Significación y selección de variables
+
+El modelo es **globalmente significativo** frente al modelo sin predictoras, según
+el test de razón de verosimilitud (preferible al de Wald en regresión logística):
+
+```{r log-lrt}
+#| echo: false
+g0 <- glm(informal ~ 1, family = binomial, data = datos)
+lmtest::lrtest(g0, g) |>
+  as.data.frame() |>
+  tabla(cap = "Test de razón de verosimilitud: modelo vs. modelo nulo.",
+        digits = c(0, 1, 0, 1, 4))
+```
+
+Para ver el aporte de cada variable, se la elimina de a una y se contrasta por razón
+de verosimilitud:
+
+```{r log-drop1}
+#| echo: false
+drop1(g, test = "LRT") |> as.data.frame() |>
+  rownames_to_column("Término") |>
+  filter(Término != "<none>") |>
+  transmute(Término, `g.l.` = Df, LRT, `p-valor` = `Pr(>Chi)`) |>
+  tabla(cap = "Aporte de cada variable (test de razón de verosimilitud).", digits = 3)
+```
+
+Todas las variables aportan significativamente **excepto el sexo**. Es un contraste
+interesante con el modelo de salarios: el sexo **influye en el nivel salarial**
+(brecha de género) pero **no en la probabilidad de informalidad**. Por parsimonia,
+el modelo final excluye el sexo:
+
+```{r log-final}
+g_final <- glm(informal ~ nivel_ed + edad + I(edad^2) + tamano_estab + region,
+               family = binomial(link = "logit"), data = datos)
+```
+
+## Capacidad predictiva
+
+```{r pred-setup}
+#| cache: true
+suppressMessages({library(pROC); library(nnet)})
+form_g <- informal ~ nivel_ed + edad + I(edad^2) + tamano_estab + region
+
+metricas <- function(obs, prob, corte) {
+  pred <- factor(ifelse(prob >= corte, "Informal", "Formal"), levels = c("Formal", "Informal"))
+  VP <- sum(pred == "Informal" & obs == "Informal"); FP <- sum(pred == "Informal" & obs == "Formal")
+  FN <- sum(pred == "Formal"   & obs == "Informal"); VN <- sum(pred == "Formal"   & obs == "Formal")
+  n <- VP + FP + FN + VN; po <- (VP + VN) / n
+  pe <- ((VP + FN) / n) * ((VP + FP) / n) + ((FP + VN) / n) * ((FN + VN) / n)
+  sens <- VP / (VP + FN); spec <- VN / (VN + FP); ppv <- VP / (VP + FP); npv <- VN / (VN + FN)
+  c(Exactitud = po, Sensibilidad = sens, Especificidad = spec, VPP = ppv, VPN = npv,
+    F1 = 2 * ppv * sens / (ppv + sens), Kappa = (po - pe) / (1 - pe))
+}
+
+prob_is <- predict(g_final, type = "response")
+roc_is  <- roc(datos$informal, prob_is, levels = c("Formal", "Informal"), direction = "<", quiet = TRUE)
+corte   <- as.numeric(coords(roc_is, "best", best.method = "youden", ret = "threshold")[1])
+
+niv3 <- c("Chico (hasta 5)", "Mediano (6 a 40)", "Grande (más de 40)")
+don_cv <- c("log_salario", "sexo", "edad", "nivel_ed", "region", "sector")
+base$es_dom <- !is.na(base$tamano_estab) & base$tamano_estab == "Casa particular"
+imputar <- function(tr, te) {
+  tr_fit <- tr |> filter(!es_dom, !is.na(tamano_estab))
+  mod <- multinom(reformulate(don_cv, "t3"),
+                  data = transform(tr_fit, t3 = droplevels(factor(tr_fit$tamano_estab, levels = niv3))),
+                  trace = FALSE)
+  fill <- function(d) {
+    na_nd <- !d$es_dom & is.na(d$tamano_estab)
+    if (any(na_nd)) d$tamano_estab[na_nd] <- as.character(predict(mod, d[na_nd, ]))
+    factor(d$tamano_estab, levels = c(niv3, "Casa particular"))
+  }
+  list(tr = fill(tr), te = fill(te))
+}
+
+set.seed(2026)
+k <- 10
+fold <- integer(nrow(base))
+for (lv in levels(base$informal)) {
+  idx <- which(base$informal == lv)
+  fold[idx] <- sample(rep(1:k, length.out = length(idx)))
+}
+oof <- rep(NA_real_, nrow(base))
+for (i in 1:k) {
+  tr <- base[fold != i, ]; te <- base[fold == i, ]
+  imp <- imputar(tr, te)
+  tr$tamano_estab <- imp$tr; te$tamano_estab <- imp$te
+  g_cv <- glm(form_g, family = binomial("logit"), data = tr)
+  oof[fold == i] <- predict(g_cv, te, type = "response")
+}
+roc_cv <- roc(base$informal, oof, levels = c("Formal", "Informal"), direction = "<", quiet = TRUE)
+corte_cv <- as.numeric(coords(roc_cv, "best", best.method = "youden", ret = "threshold")[1])
+```
+
+Para ver qué tan bien el modelo **clasifica** a las personas como formales o
+informales se usan las probabilidades ajustadas y una regla de decisión.
+
+**Curva ROC y AUC.** La curva ROC resume el desempeño para todos los puntos de corte
+posibles; el área bajo la curva (AUC) mide la capacidad de discriminación:
+
+```{r pred-roc}
+#| echo: false
+#| fig-cap: "Curva ROC del modelo de informalidad."
+ggroc(roc_is, color = col_teal, linewidth = 1) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = col_ref) +
+  annotate("text", x = 0.25, y = 0.15,
+           label = sprintf("AUC = %.3f", as.numeric(auc(roc_is)))) +
+  labs(x = "Especificidad", y = "Sensibilidad")
+```
+
+El **AUC ≈ `r sprintf("%.2f", as.numeric(auc(roc_is)))`** indica una **buena
+capacidad de discriminación** (muy por encima del 0,5 de una clasificación al azar).
+
+**Punto de corte.** Con el corte habitual de 0,5 el modelo es algo conservador para
+detectar informales. El **corte óptimo de Youden**
+(`r sprintf("%.2f", corte)`), que maximiza a la vez sensibilidad y especificidad,
+mejora la detección:
+
+```{r pred-metricas}
+#| echo: false
+rbind(`Corte 0,5`    = metricas(datos$informal, prob_is, 0.5),
+      `Corte óptimo` = metricas(datos$informal, prob_is, corte)) |>
+  as.data.frame() |>
+  rownames_to_column("Regla") |>
+  tabla(cap = sprintf("Métricas de clasificación. Corte óptimo de Youden = %.3f.", corte),
+        digits = 3)
+```
+
+```{r pred-confusion}
+#| echo: false
+pred <- factor(ifelse(prob_is >= corte, "Informal", "Formal"), levels = c("Formal", "Informal"))
+addmargins(table(Predicho = pred, Observado = datos$informal)) |>
+  as.data.frame.matrix() |>
+  rownames_to_column("Predicho \\ Observado") |>
+  tabla(cap = "Matriz de confusión con el corte óptimo.", digits = 0)
+```
+
+Con el corte óptimo, el modelo alcanza una **sensibilidad de alrededor de 0,75**
+(detecta 3 de cada 4 informales) y una **especificidad de alrededor de 0,83**, con
+una concordancia moderada (Kappa ≈ 0,57).
+
+**Validación cruzada.** Para estimar el desempeño en datos nuevos —y descartar
+sobreajuste— se aplica **validación cruzada estratificada de 10 folds**. Lo
+importante es que la **imputación del tamaño se rehace dentro de cada fold** (usando
+solo el conjunto de entrenamiento y sin la variable `informal` como donante), de
+modo de no filtrar información hacia la predicción:
+
+```{r pred-cv-tabla}
+#| echo: false
+rbind(`Datos de ajuste`    = c(AUC = as.numeric(auc(roc_is)),
+                               metricas(datos$informal, prob_is, corte)),
+      `Validación cruzada` = c(AUC = as.numeric(auc(roc_cv)),
+                               metricas(base$informal, oof, corte_cv))) |>
+  as.data.frame() |>
+  rownames_to_column("Evaluación") |>
+  tabla(cap = "Desempeño en los datos de ajuste vs. validación cruzada (10 folds, imputación dentro de cada fold).",
+        digits = 3)
+```
+
+Las métricas de validación cruzada son **casi idénticas** a las de ajuste (AUC ≈
+0,86 en ambos casos): el modelo **no está sobreajustado** y mantiene su capacidad
+predictiva en datos no vistos. Que la imputación dentro de cada fold no altere los
+resultados confirma, además, que el tratamiento de faltantes **no infla**
+artificialmente el desempeño.
+
+**En términos del problema.** El modelo logístico identifica correctamente los
+determinantes de la informalidad —sobre todo el **tamaño del establecimiento** y la
+**educación**— y, con un AUC de alrededor de 0,86 validado por validación cruzada,
+tiene una **buena capacidad** para distinguir entre trabajadores formales e
+informales.
+
+# Síntesis y limitaciones
+
+## Síntesis
+
+A partir de los microdatos de la EPH (4.º trimestre de 2025) y una base analítica de
+**`r format(nrow(datos), big.mark=".")` asalariados** de 18 a 65 años, se ajustaron
+dos modelos complementarios.
+
+El **modelo de regresión lineal** para el log-salario horario confirma:
+
+- **Retornos crecientes a la educación**: completar el secundario se asocia a un
+  salario ~22 % mayor y el nivel superior completo a uno ~78 % mayor.
+- Un **perfil de edad cóncavo**, con máximo cerca de los `r edad_pico` años.
+- Una **penalización por informalidad** de alrededor de `r efa(coef(m_base)["informalInformal"])`,
+  el efecto individual más grande.
+- Una **prima por tamaño** del establecimiento y **diferencias regionales** marcadas
+  (Patagonia por encima del GBA; NOA, NEA y Cuyo por debajo).
+- Una **brecha de género** de alrededor de `r efa(coef(m_base)["sexoMujer"])` que,
+  aunque parecía nula a nivel marginal, emerge al controlar por educación y resulta
+  significativa.
+
+El **modelo de regresión logística** para la informalidad muestra:
+
+- El **tamaño del establecimiento** es el determinante dominante: en los grandes, la
+  chance de informalidad es alrededor de un 94 % menor que en los chicos.
+- La **educación** reduce fuertemente la informalidad.
+- El **sexo no resulta significativo**: a igualdad de características, varones y
+  mujeres tienen una probabilidad de informalidad similar.
+
+En conjunto, **educación y tamaño del establecimiento** son las palancas centrales
+de ambos fenómenos. Resulta llamativa la **asimetría del sexo**: influye en el
+*nivel salarial* pero no en la *probabilidad de informalidad*. Y la informalidad
+aparece a la vez como un fuerte **determinante** de menores salarios y como un
+resultado **predecible** a partir de las características del empleo.
+
+## Limitaciones
+
+- **Naturaleza transversal (no causal).** Los datos son un corte de un trimestre:
+  las estimaciones reflejan **asociaciones**, no efectos causales. Pueden existir
+  variables omitidas (habilidad no observada, experiencia efectiva —aproximada por
+  la edad—, rasgos de la ocupación) que sesguen los coeficientes.
+- **No respuesta de ingresos.** Una porción importante de los asalariados no declaró
+  su ingreso y se la trató por casos completos. Si quienes más ganan tienden a no
+  responder, el modelo de salarios podría subrepresentarlos. No se aplicaron
+  correcciones avanzadas (ponderadores de ingreso del INDEC, modelos de selección).
+- **Selección muestral.** Se analizó únicamente a los asalariados ocupados; la
+  ecuación de salarios podría sufrir sesgo de selección, porque quiénes trabajan y
+  declaran ingreso no son una muestra aleatoria de la población.
+- **Diseño muestral complejo.** La EPH se basa en un muestreo por conglomerados con
+  ponderadores; al no incorporarlos, los errores estándar podrían estar algo
+  subestimados y las estimaciones deben leerse como propias de la muestra más que
+  como estimaciones poblacionales precisas.
+- **Medición de la informalidad.** Se la definió por la ausencia de descuento
+  jubilatorio (empleo no registrado); otras definiciones podrían dar resultados
+  distintos.
+- **Variabilidad no explicada.** El modelo de salarios explica cerca del 39 % de la
+  variabilidad; el resto queda en factores no observados.
+- **Imputación.** El tamaño del establecimiento se imputó en una fracción chica de
+  los casos; si bien los métodos coincidieron y la validación cruzada lo confirmó,
+  sigue siendo una estimación basada en un modelo.
+
+En síntesis, el trabajo integra el flujo completo de pre-procesamiento, análisis
+exploratorio y modelado, y llega a modelos interpretables y predictivamente
+adecuados, cuyas conclusiones deben leerse a la luz de las limitaciones señaladas.
