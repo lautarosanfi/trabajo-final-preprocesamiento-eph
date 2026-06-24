@@ -1,210 +1,187 @@
 /*-- scss:defaults --*/
 
-// ====== Paleta pastel del informe ======
-$orchid:    #CDB4DB;   // Pink Orchid (lavanda)
-$petal:     #FFC8DD;   // Pastel Petal
-$blush:     #FFAFCC;   // Blush Pop (rosa)
-$icy:       #BDE0FE;   // Icy Blue
-$sky:       #A2D2FF;   // Sky Blue
-$ink:       #3A3550;   // tinta violácea
-$blue-dp:   #3E7CC4;   // azul saturado
-$orchid-dp: #8A63B8;   // lavanda saturado
-$pink-dp:   #E4669B;   // rosa saturado
+// ====== Modern Minimalist ======
+// Base en grises; el color (coral) se reserva para lo que hay que resaltar.
+$ink:       #22303A;   // casi-negro azulado (títulos)
+$charcoal:  #36454F;   // charcoal (texto)
+$slate:     #708090;   // slate gray (secundario)
+$gray-md:   #AAB4BB;
+$gray-lt:   #D3D3D3;   // light gray (divisores)
+$gray-pl:   #EDF0F2;   // gris muy claro
+$accent:    #E76F51;   // coral (acento principal)
+$accent2:   #2A9D8F;   // teal (acento secundario)
+$paper:     #FFFFFF;
 
-// ====== Tipografía ======
-$font-family-sans-serif: "Segoe UI", "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif !default;
+// ---- Tipografía ----
+$font-family-sans-serif: "Inter", "Helvetica Neue", "Segoe UI", Arial, "DejaVu Sans", sans-serif !default;
+$headings-font-family: $font-family-sans-serif !default;
 $font-size-root: 16px !default;
-$line-height-base: 1.65 !default;
+$line-height-base: 1.7 !default;
 
-// ====== Colores base de Bootstrap/Quarto ======
-$body-bg: #FBFAFE !default;
-$body-color: $ink !default;
-$link-color: $blue-dp !default;
-$link-hover-color: $orchid-dp !default;
-$primary: $orchid-dp !default;
-$border-color: #ECE6F3 !default;
+// ---- Bootstrap / Quarto ----
+$body-bg: #FFFFFF !default;
+$body-color: $charcoal !default;
+$link-color: $accent !default;
+$link-hover-color: darken($accent, 12%) !default;
+$primary: $charcoal !default;
+$border-color: #E9ECEE !default;
 
-// Código
-$code-color: #7A4FA3 !default;
-$code-bg: #F4EEFB !default;
-$code-block-bg: #F7F3FC !default;
-
-// Headings
 $headings-font-weight: 700 !default;
 $headings-color: $ink !default;
+
+// Código
+$code-color: #B5523A !default;
+$code-bg: #F6F2F0 !default;
+$code-block-bg: #FAFAFA !default;
 
 
 /*-- scss:rules --*/
 
-// ====== Fondo general ======
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+// ====== Lienzo ======
 body {
-  background: linear-gradient(180deg, #FBFAFE 0%, #F5F1FB 100%);
-  background-attachment: fixed;
+  background: $paper;
   letter-spacing: 0.1px;
+  -webkit-font-smoothing: antialiased;
 }
 
-// ====== Banner del título (hero) ======
-.quarto-title-banner {
-  background: linear-gradient(120deg, #FFC8DD 0%, #CDB4DB 42%, #A2D2FF 100%);
-  margin-bottom: 2rem;
-  border-radius: 0 0 22px 22px;
-  box-shadow: 0 8px 28px rgba(138, 99, 184, 0.18);
+// Ancho de lectura cómodo + aire
+#quarto-document-content, main.content { padding-top: 1rem; }
+
+// ====== Bloque de título: limpio, sin banner, con regla coral ======
+#title-block-header {
+  margin-bottom: 2.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid $gray-lt;
 }
-.quarto-title-banner .quarto-title .title {
+#title-block-header .title {
   font-weight: 800;
-  letter-spacing: -0.6px;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.35);
+  font-size: 2.5rem;
+  line-height: 1.12;
+  letter-spacing: -1px;
+  color: $ink;
+  position: relative;
+  padding-top: 0.9rem;
 }
-.quarto-title-banner .subtitle,
-.quarto-title-banner .quarto-title-meta {
-  color: #4a4263 !important;
+// barra de acento coral arriba del título
+#title-block-header .title::before {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  background: $accent;
+  margin-bottom: 1.1rem;
 }
-
-// ====== Contenedor de contenido tipo tarjeta ======
-#quarto-document-content,
-main.content {
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 2.2rem 2.6rem 2.8rem;
+#title-block-header .subtitle {
+  color: $slate;
+  font-weight: 500;
+  font-size: 1.12rem;
   margin-top: 0.5rem;
-  box-shadow: 0 6px 30px rgba(58, 53, 80, 0.07);
-  border: 1px solid #F0EAF7;
 }
+.quarto-title-meta-heading { color: $gray-md; text-transform: uppercase; letter-spacing: 1px; font-size: 0.7rem; }
+.quarto-title-meta-contents { color: $charcoal; }
 
 // ====== Encabezados ======
-h1, h2, h3, h4 { letter-spacing: -0.3px; }
-
-h1.title { color: $ink; }
-
+h1, h2, h3, h4 { letter-spacing: -0.4px; color: $ink; }
+h1:not(.title) {
+  font-size: 1.85rem;
+  margin-top: 3rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid $ink;
+}
 h2 {
-  color: $orchid-dp;
-  border-bottom: 2px solid $petal;
-  padding-bottom: 0.35rem;
-  margin-top: 2.2rem;
+  font-size: 1.4rem;
+  margin-top: 2.4rem;
+  color: $charcoal;
 }
+h3 { font-size: 1.12rem; margin-top: 1.7rem; color: $charcoal; }
+h4 { font-size: 1rem; color: $slate; }
 
-h3 {
-  color: $blue-dp;
-  margin-top: 1.6rem;
-}
+// Numeración de secciones en coral (acento de navegación)
+.header-section-number { color: $accent; font-weight: 700; }
 
-h4 { color: $ink; }
-
-// Numeración de secciones en color de acento
-.header-section-number {
-  color: $orchid;
-  font-weight: 700;
-}
-
-// ====== Enlaces ======
-a { text-decoration: none; transition: color .15s ease; }
-a:hover { text-decoration: underline; text-decoration-color: $blush; }
+// ====== Texto ======
+p { color: $charcoal; }
+strong, b { color: $ink; font-weight: 700; }
+a { text-decoration: none; border-bottom: 1px solid rgba(231,111,81,0.35); transition: all .15s ease; }
+a:hover { color: darken($accent, 12%); border-bottom-color: $accent; }
 
 // ====== Tabla de contenidos ======
 #TOC, nav[role="doc-toc"] {
+  font-size: 0.86rem;
   .nav-link {
-    color: #6b6480;
+    color: $slate;
     border-left: 2px solid transparent;
-    padding-left: 0.6rem;
+    padding: 0.18rem 0.7rem;
     transition: all .15s ease;
   }
-  .nav-link:hover {
-    color: $orchid-dp;
-    border-left-color: $blush;
-  }
+  .nav-link:hover { color: $ink; border-left-color: $gray-lt; }
   .nav-link.active {
-    color: $orchid-dp !important;
+    color: $accent !important;
     font-weight: 600;
-    border-left: 3px solid $orchid-dp;
-    background: linear-gradient(90deg, rgba(205,180,219,0.16), transparent);
+    border-left: 2px solid $accent;
+    background: transparent;
   }
 }
-.sidebar nav[role="doc-toc"] > h2,
-#toc-title { color: $ink; font-weight: 700; }
+#toc-title, .sidebar nav[role="doc-toc"] > h2 {
+  color: $ink; font-weight: 700; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 1.2px;
+}
 
-// ====== Bloques de código ======
+// ====== Código ======
 div.sourceCode {
-  border-radius: 12px;
-  border: 1px solid #ECE3F6;
-  box-shadow: 0 2px 10px rgba(122, 79, 163, 0.05);
+  border-radius: 8px;
+  border: 1px solid #EDEFF1;
+  background: #FAFAFA;
 }
-pre.sourceCode { padding: 0.4rem 0.2rem; }
 code:not(.sourceCode) {
-  background: $code-bg;
-  color: $code-color;
-  padding: 0.12em 0.38em;
-  border-radius: 6px;
-  font-size: 0.86em;
+  background: $code-bg; color: $code-color;
+  padding: 0.1em 0.4em; border-radius: 5px; font-size: 0.85em;
 }
+details.code-fold > summary, .code-fold > summary {
+  color: $slate; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+details.code-fold > summary:hover { color: $accent; }
+#quarto-code-tools-source, .code-tools-button { color: $slate; }
 
-// Botón "Ver código" / code-tools
-details.code-fold > summary,
-.code-fold > summary {
-  color: $orchid-dp;
-  font-weight: 600;
-  cursor: pointer;
-}
-.code-tools-button, #quarto-code-tools-source {
-  color: $orchid-dp;
-}
-
-// ====== Tablas gt ======
+// ====== Tablas gt: minimalistas (cabecera en mayúsculas, sin grillas) ======
 .gt_table {
-  border-radius: 12px !important;
-  overflow: hidden;
-  box-shadow: 0 4px 18px rgba(138, 99, 184, 0.10);
   margin-left: auto !important;
   margin-right: auto !important;
-  margin-top: 0.6rem;
-  margin-bottom: 0.4rem;
+  margin-top: 0.8rem; margin-bottom: 0.4rem;
+  border: none !important;
 }
-.gt_table .gt_column_spanner,
-.gt_table .gt_col_heading { letter-spacing: 0.2px; }
+.gt_table .gt_col_heading {
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 0.72rem !important;
+  color: $slate !important;
+}
 .gt_table .gt_caption {
-  color: #7a7390;
-  font-style: italic;
-  font-size: 0.82rem;
-  padding-top: 0.5rem;
+  color: $gray-md; font-style: italic; font-size: 0.8rem;
+  padding-top: 0.6rem; text-align: left;
 }
 
 // ====== Figuras / captions ======
-figure { margin-top: 1.2rem; margin-bottom: 1.2rem; }
+figure { margin: 1.6rem 0; }
 figcaption, .figure-caption, .quarto-figure figcaption {
-  color: #8b8499;
-  font-style: italic;
-  font-size: 0.85rem;
-  text-align: center;
-  margin-top: 0.4rem;
-}
-.quarto-figure img, p img {
-  border-radius: 12px;
+  color: $gray-md; font-size: 0.82rem; text-align: center; margin-top: 0.5rem;
 }
 
-// ====== Citas / fórmulas destacadas ======
+// ====== Citas ======
 blockquote {
-  border-left: 4px solid $orchid;
-  background: #FBF7FE;
-  border-radius: 0 10px 10px 0;
-  padding: 0.6rem 1rem;
-  color: #574f6b;
+  border-left: 3px solid $accent;
+  background: transparent;
+  padding: 0.2rem 0 0.2rem 1.1rem;
+  color: $slate;
 }
 
-// Texto en negrita con leve color de acento
-strong, b { color: #2c2840; }
+// ====== Separadores y listas ======
+hr { border: none; border-top: 1px solid $gray-lt; margin: 2.4rem 0; }
+ul li::marker { color: $accent; }
+ol li::marker { color: $slate; font-weight: 600; }
 
-// ====== Separadores ======
-hr {
-  border: none;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, $petal, $sky, transparent);
-  margin: 2.2rem 0;
-}
-
-// ====== Listas ======
-ul li::marker { color: $orchid-dp; }
-ol li::marker { color: $blue-dp; font-weight: 600; }
-
-// ====== Ecuaciones display: leve realce ======
-.math.display {
-  overflow-x: auto;
-}
+// Ecuaciones con scroll horizontal si hace falta
+.math.display { overflow-x: auto; overflow-y: hidden; }

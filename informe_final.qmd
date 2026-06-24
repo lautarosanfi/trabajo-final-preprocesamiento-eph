@@ -6,14 +6,12 @@ date: today
 lang: es
 format:
   html:
-    theme: [cosmo, custom.scss]
+    theme: [litera, custom.scss]
     toc: true
     toc-location: left
     toc-title: "Contenidos"
     toc-depth: 3
     number-sections: true
-    title-block-banner: true
-    title-block-banner-color: "#3A3550"
     code-fold: true
     code-tools: true
     code-summary: "Ver código"
@@ -43,60 +41,76 @@ library(eph)
 library(knitr)
 library(gt)
 
-# ---- Paleta pastel del informe -------------------------------------------
-col_orchid <- "#CDB4DB"   # Pink Orchid  (lavanda-rosa)
-col_petal  <- "#FFC8DD"   # Pastel Petal (rosa-lila claro)
-col_blush  <- "#FFAFCC"   # Blush Pop    (rosa)
-col_icy    <- "#BDE0FE"   # Icy Blue     (celeste claro)
-col_sky    <- "#A2D2FF"   # Sky Blue     (celeste)
+# ===========================================================================
+#  TEMA: Modern Minimalist (grises) + acentos para CONTAR LA HISTORIA
+#  Regla de color: el gris es contexto; el color marca el mensaje.
+#    coral  = desventaja / menos / riesgo   (mujer, informal, efecto que baja)
+#    teal   = ventaja / más / positivo      (formal, efecto que sube)
+# ===========================================================================
+ink      <- "#22303A"   # casi-negro azulado (títulos, énfasis)
+charcoal <- "#36454F"   # charcoal (texto, series principales)
+slate    <- "#708090"   # slate gray (ejes, secundario)
+gray_md  <- "#AAB4BB"   # gris medio
+gray_lt  <- "#D3D3D3"   # light gray (contexto, no significativo)
+gray_pl  <- "#EDF0F2"   # gris muy claro (rellenos neutros)
+grid_col <- "#ECEEF0"   # grilla
+paper    <- "#FFFFFF"
 
-# Versiones profundas (derivadas) para líneas, puntos y texto -> contraste
-col_blue_dp   <- "#3E7CC4"   # azul saturado
-col_pink_dp   <- "#E4669B"   # rosa saturado
-col_orchid_dp <- "#8A63B8"   # lavanda saturado
-col_ink       <- "#3A3550"   # tinta violácea (texto / títulos)
-col_grid      <- "#ECE6F3"   # grilla suave
-col_ref       <- "#A79FB8"   # guías / líneas de referencia
+accent    <- "#E76F51"  # CORAL  -> desventaja / menos / riesgo
+accent2   <- "#2A9D8F"  # TEAL   -> ventaja / más / positivo
+accent_s  <- "#F2A48C"  # coral claro (rellenos)
+accent2_s <- "#8FC9C1"  # teal claro (rellenos)
 
-# Sexo: Varón azul, Mujer rosa (fijo en todo el informe)
-pal_sexo <- c("Varón" = col_sky,  "Mujer" = col_blush)
-# Informalidad
-pal_inf  <- c("Formal" = col_icy, "Informal" = col_orchid)
-# Significatividad (forest plots)
-pal_sig  <- c("Significativo" = col_blue_dp, "No significativo" = col_blush)
+# Mapas semánticos
+pal_sexo <- c("Varón" = slate,   "Mujer"    = accent)    # mujer resaltada (gana menos)
+pal_inf  <- c("Formal" = accent2, "Informal" = accent)   # formal bien / informal mal
+pal_dir  <- c("Sube el salario" = accent2, "Baja el salario" = accent,
+              "Más informalidad" = accent, "Menos informalidad" = accent2,
+              "No significativo" = gray_lt)
 
-# ---- Tema de los gráficos ------------------------------------------------
-theme_informe <- theme_minimal(base_size = 12) +
+# ---- Tema minimalista de los gráficos ------------------------------------
+theme_min <- theme_minimal(base_size = 13) +
   theme(
-    text             = element_text(color = col_ink),
-    plot.title       = element_text(face = "bold", size = 13, color = col_ink),
-    plot.subtitle    = element_text(color = col_orchid_dp),
-    plot.caption     = element_text(color = col_ref, size = 9),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_line(color = col_grid, linewidth = 0.35),
-    axis.title       = element_text(color = col_ink),
-    axis.text        = element_text(color = col_ink),
-    strip.text       = element_text(face = "bold", color = "white"),
-    strip.background = element_rect(fill = col_orchid_dp, color = NA),
-    legend.position  = "bottom",
-    legend.title     = element_blank(),
-    plot.background  = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = NA)
+    text                 = element_text(color = charcoal),
+    plot.title           = element_text(face = "bold", size = 14.5, color = ink,
+                                        margin = margin(b = 3)),
+    plot.subtitle        = element_text(size = 11, color = slate,
+                                        margin = margin(b = 14), lineheight = 1.1),
+    plot.caption         = element_text(size = 8.5, color = gray_md, hjust = 0,
+                                        margin = margin(t = 10)),
+    plot.title.position  = "plot",
+    plot.caption.position = "plot",
+    axis.title           = element_text(size = 10.5, color = slate),
+    axis.title.x         = element_text(margin = margin(t = 6)),
+    axis.title.y         = element_text(margin = margin(r = 6)),
+    axis.text            = element_text(color = slate),
+    panel.grid.major     = element_line(color = grid_col, linewidth = 0.5),
+    panel.grid.minor     = element_blank(),
+    legend.position      = "top",
+    legend.justification = "left",
+    legend.title         = element_blank(),
+    legend.text          = element_text(color = charcoal, size = 10.5),
+    legend.key.size      = unit(0.9, "lines"),
+    strip.text           = element_text(face = "bold", color = ink, hjust = 0,
+                                        size = 11),
+    plot.background      = element_rect(fill = paper, color = NA),
+    panel.background     = element_rect(fill = paper, color = NA),
+    plot.margin          = margin(16, 18, 12, 16)
   )
-theme_set(theme_informe)
-update_geom_defaults("bar",        list(fill = col_sky))
-update_geom_defaults("col",        list(fill = col_sky))
-update_geom_defaults("boxplot",    list(fill = col_icy, color = col_ink))
-update_geom_defaults("point",      list(color = col_sky))
-update_geom_defaults("pointrange", list(color = col_blue_dp))
+theme_set(theme_min)
+update_geom_defaults("bar",        list(fill = charcoal))
+update_geom_defaults("col",        list(fill = charcoal))
+update_geom_defaults("boxplot",    list(fill = gray_pl, color = slate))
+update_geom_defaults("point",      list(color = slate))
+update_geom_defaults("pointrange", list(color = charcoal))
+update_geom_defaults("line",       list(color = charcoal))
 
-# ---- Tablas con gt (estética unificada) ----------------------------------
+# ---- Tablas con gt: estética minimalista (sin grillas, regla en cabecera)-
 tabla <- function(x, cap = NULL, digits = 2, ...) {
   x <- as.data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
-  cols    <- names(x)
-  es_num  <- vapply(x, is.numeric, logical(1))
+  cols   <- names(x)
+  es_num <- vapply(x, is.numeric, logical(1))
   g <- gt(x)
-  # Formato numérico es-AR (coma decimal, punto de miles), por columna
   dig_de <- function(i) if (length(digits) == 1) digits else
                         if (i <= length(digits)) digits[i] else digits[length(digits)]
   for (i in seq_along(cols)) if (es_num[i])
@@ -105,27 +119,30 @@ tabla <- function(x, cap = NULL, digits = 2, ...) {
   if (!is.null(cap)) g <- tab_caption(g, md(cap))
   g |>
     sub_missing(missing_text = "—") |>
-    opt_row_striping() |>
     cols_align(align = "center", columns = where(is.numeric)) |>
     tab_options(
+      table.font.names           = c("Inter", "Helvetica Neue", "Arial",
+                                     "DejaVu Sans", "sans-serif"),
       table.font.size            = px(13),
-      table.font.color           = col_ink,
-      table.background.color      = "white",
+      table.font.color           = charcoal,
+      table.background.color      = paper,
       table.border.top.style      = "none",
       table.border.bottom.style   = "none",
       heading.align              = "left",
-      column_labels.background.color = col_orchid_dp,
+      column_labels.background.color = paper,
       column_labels.font.weight  = "bold",
+      column_labels.font.size    = px(11),
       column_labels.border.top.style    = "none",
-      column_labels.border.bottom.width = px(0),
-      row.striping.background_color = "#F7F2FB",
-      table_body.hlines.color    = "#EFE9F5",
-      data_row.padding           = px(6),
+      column_labels.border.bottom.color = ink,
+      column_labels.border.bottom.width = px(2),
+      table_body.hlines.color    = "#EFF1F3",
+      table_body.border.bottom.color = gray_lt,
+      table_body.border.bottom.width = px(1),
+      data_row.padding           = px(9),
       table.align                = "center"
     ) |>
-    tab_style(style = cell_text(color = "white"),
-              locations = cells_column_labels()) |>
-    opt_table_outline(style = "solid", width = px(1), color = "#EDE6F4")
+    tab_style(style = cell_text(color = slate, weight = "bold"),
+              locations = cells_column_labels())
 }
 
 ef  <- function(b) sprintf("%+.1f%%", 100 * (exp(b) - 1))
@@ -567,10 +584,12 @@ datos |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(valor)) +
   geom_histogram(aes(y = after_stat(density)), bins = 40,
-                 fill = col_icy, color = "white") +
-  geom_density(color = col_blue_dp, linewidth = 0.9) +
+                 fill = gray_pl, color = "white") +
+  geom_density(color = accent2, linewidth = 1) +
   facet_wrap(~Escala, scales = "free") +
-  labs(x = NULL, y = "Densidad")
+  labs(title = "El logaritmo corrige la fuerte asimetría del salario",
+       subtitle = "Distribución del salario horario en escala original y logarítmica",
+       x = NULL, y = "Densidad")
 ```
 
 ```{r qq-transf}
@@ -581,10 +600,12 @@ datos |>
             `log(Salario horario)` = log_salario) |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(sample = valor)) +
-  stat_qq(alpha = .25, color = col_sky) +
-  stat_qq_line(color = col_pink_dp, linewidth = 0.8) +
+  stat_qq(alpha = .25, color = gray_md) +
+  stat_qq_line(color = accent, linewidth = 0.9) +
   facet_wrap(~Escala, scales = "free") +
-  labs(x = "Cuantiles teóricos", y = "Cuantiles muestrales")
+  labs(title = "En escala logarítmica los cuantiles se alinean con la normal",
+       subtitle = "Gráficos Q-Q normales antes y después de la transformación",
+       x = "Cuantiles teóricos", y = "Cuantiles muestrales")
 ```
 
 La asimetría pasa de alrededor de 4 a casi 0 y la curtosis cae de forma drástica:
@@ -613,9 +634,11 @@ datos |>
             `log(Salario horario)` = log_salario) |>
   pivot_longer(everything(), names_to = "Escala", values_to = "valor") |>
   ggplot(aes(y = valor)) +
-  geom_boxplot(fill = col_icy, color = col_ink, outlier.color = col_pink_dp, outlier.alpha = .5) +
+  geom_boxplot(fill = gray_pl, color = slate, outlier.color = accent, outlier.alpha = .5) +
   facet_wrap(~Escala, scales = "free") +
-  labs(y = NULL) +
+  labs(title = "El log comprime los atípicos extremos de la escala original",
+       subtitle = "En coral, los valores atípicos según la regla 1,5·RIC",
+       y = NULL) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
 
@@ -669,13 +692,15 @@ En cuanto a la informalidad, algo más de un tercio de los asalariados es inform
 #| fig-cap: "Distribución de la informalidad laboral."
 datos |> count(informal) |> mutate(p = n / sum(n)) |>
   ggplot(aes(informal, p, fill = informal)) +
-  geom_col(width = .6) +
-  geom_text(aes(label = scales::percent(p, accuracy = .1)), vjust = -0.4,
-            color = col_ink, fontface = "bold") +
+  geom_col(width = .62) +
+  geom_text(aes(label = scales::percent(p, accuracy = .1)), vjust = -0.5,
+            color = ink, fontface = "bold", size = 4.4) +
   scale_fill_manual(values = pal_inf) +
-  scale_y_continuous(labels = scales::percent, expand = expansion(c(0, .1))) +
-  labs(x = NULL, y = NULL) +
-  theme(legend.position = "none")
+  scale_y_continuous(labels = scales::percent, expand = expansion(c(0, .12))) +
+  labs(title = "Más de un tercio de los asalariados trabaja en la informalidad",
+       subtitle = "Composición según condición de registro (descuento jubilatorio)",
+       x = NULL, y = NULL) +
+  theme(legend.position = "none", panel.grid.major.x = element_blank())
 ```
 
 ## El salario según las características
@@ -683,10 +708,16 @@ datos |> count(informal) |> mutate(p = n / sum(n)) |>
 ```{r biv-educ}
 #| echo: false
 #| fig-cap: "Salario (log) según nivel educativo."
-ggplot(datos, aes(nivel_ed, log_salario)) +
-  geom_boxplot() +
-  labs(x = NULL, y = "log(Salario horario)") +
-  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+hi_ed <- setNames(rep(gray_pl, nlevels(datos$nivel_ed)), levels(datos$nivel_ed))
+hi_ed["Superior completo"] <- accent2_s
+ggplot(datos, aes(nivel_ed, log_salario, fill = nivel_ed)) +
+  geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .35) +
+  scale_fill_manual(values = hi_ed) +
+  labs(title = "Cada escalón educativo se asocia a un salario más alto",
+       subtitle = "Salario horario (log) por máximo nivel alcanzado · en teal, el nivel mejor pago",
+       x = NULL, y = "log(Salario horario)") +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 18, hjust = 1))
 ```
 
 El salario crece de manera monótona con el nivel educativo, lo que anticipa
@@ -696,9 +727,11 @@ El salario crece de manera monótona con el nivel educativo, lo que anticipa
 #| echo: false
 #| fig-cap: "Salario (log) según sexo y condición de informalidad."
 ggplot(datos, aes(sexo, log_salario, fill = informal)) +
-  geom_boxplot(color = col_ink) +
+  geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .25) +
   scale_fill_manual(values = pal_inf) +
-  labs(x = NULL, y = "log(Salario horario)")
+  labs(title = "El empleo informal paga bastante menos, en ambos sexos",
+       subtitle = "A nivel marginal la brecha de género casi no se ve: las medianas por sexo coinciden",
+       x = NULL, y = "log(Salario horario)")
 ```
 
 ```{r biv-edu-sexo-cifras}
@@ -719,10 +752,17 @@ se ve enseguida, al condicionar por educación la brecha sí aparece.
 ```{r biv-tamano}
 #| echo: false
 #| fig-cap: "Salario (log) según tamaño del establecimiento."
-ggplot(datos, aes(tamano_estab, log_salario)) +
-  geom_boxplot() +
-  labs(x = NULL, y = "log(Salario horario)") +
-  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+hi_t <- setNames(rep(gray_pl, nlevels(datos$tamano_estab)), levels(datos$tamano_estab))
+hi_t["Grande (más de 40)"] <- accent2_s
+hi_t["Casa particular"]    <- accent_s
+ggplot(datos, aes(tamano_estab, log_salario, fill = tamano_estab)) +
+  geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .35) +
+  scale_fill_manual(values = hi_t) +
+  labs(title = "A mayor tamaño del establecimiento, mayor salario",
+       subtitle = "En teal el mejor pago (grandes); en coral el peor (servicio doméstico)",
+       x = NULL, y = "log(Salario horario)") +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 18, hjust = 1))
 ```
 
 Se ve la **prima por tamaño**: a mayor tamaño del establecimiento, mayor salario.
@@ -737,10 +777,19 @@ muestra el suavizado:
 ```{r biv-edad}
 #| echo: false
 #| fig-cap: "Salario (log) según edad, con suavizado loess: perfil cóncavo."
+lo_pk <- (18:65)[which.max(predict(loess(log_salario ~ edad, datos),
+                                   data.frame(edad = 18:65)))]
 ggplot(datos, aes(edad, log_salario)) +
-  geom_point(alpha = .04) +
-  geom_smooth(method = "loess", color = col_pink_dp, fill = col_petal, se = TRUE) +
-  labs(x = "Edad (años)", y = "log(Salario horario)")
+  geom_point(alpha = .04, color = gray_md) +
+  geom_smooth(method = "loess", color = accent2, fill = accent2_s,
+              se = TRUE, linewidth = 1.3) +
+  geom_vline(xintercept = lo_pk, linetype = "dashed", color = accent) +
+  annotate("label", x = lo_pk, y = 6.0, label = paste0("Máximo ≈ ", lo_pk, " años"),
+           color = accent, fill = "white", label.size = 0,
+           fontface = "bold", size = 3.6) +
+  labs(title = paste0("El salario sube con la experiencia y se estanca hacia los ~", lo_pk, " años"),
+       subtitle = "Salario horario (log) por edad, con suavizado loess",
+       x = "Edad (años)", y = "log(Salario horario)")
 ```
 
 El contraste formal confirma que la **especificación cuadrática** mejora de manera
@@ -782,11 +831,16 @@ bind_rows(
   datos |> group_by(grupo = tamano_estab) |> summarise(tasa = mean(informal == "Informal")) |> mutate(var = "Tamaño del establecimiento")
 ) |>
   ggplot(aes(grupo, tasa)) +
-  geom_col(fill = col_orchid) +
-  scale_y_continuous(labels = scales::percent) +
+  geom_col(fill = accent, width = .72) +
+  geom_text(aes(label = scales::percent(tasa, accuracy = 1)), vjust = -0.4,
+            color = slate, size = 3.2) +
+  scale_y_continuous(labels = scales::percent, expand = expansion(c(0, .14))) +
   facet_wrap(~var, scales = "free_x", ncol = 1) +
-  labs(x = NULL, y = "Tasa de informalidad") +
-  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+  labs(title = "La informalidad cae con la educación y con el tamaño de la empresa",
+       subtitle = "Tasa de empleo no registrado por grupo",
+       x = NULL, y = NULL) +
+  theme(axis.text.x = element_text(angle = 18, hjust = 1),
+        panel.grid.major.x = element_blank())
 ```
 
 La informalidad **baja con el nivel educativo** y es mucho menor en
@@ -799,10 +853,12 @@ que tendrán estas variables en el modelo logístico.
 #| echo: false
 #| fig-cap: "Salario (log) por nivel educativo y sexo."
 ggplot(datos, aes(nivel_ed, log_salario, fill = sexo)) +
-  geom_boxplot(color = col_ink) +
+  geom_boxplot(color = slate, outlier.color = gray_md, outlier.alpha = .2) +
   scale_fill_manual(values = pal_sexo) +
-  labs(x = NULL, y = "log(Salario horario)") +
-  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+  labs(title = "A igual nivel educativo, las mujeres ganan menos que los varones",
+       subtitle = "La brecha que el promedio escondía emerge al comparar dentro de cada nivel",
+       x = NULL, y = "log(Salario horario)") +
+  theme(axis.text.x = element_text(angle = 18, hjust = 1))
 ```
 
 Acá **sí** se aprecia la brecha: **dentro de cada nivel educativo los varones ganan
@@ -1037,9 +1093,9 @@ pero sí cierta variación no constante:
 #| fig-cap: "Residuos vs. valores ajustados."
 data.frame(ajustado = fitted(m_base), residuo = resid(m_base)) |>
   ggplot(aes(ajustado, residuo)) +
-  geom_point(alpha = .05) +
-  geom_smooth(se = FALSE, color = col_pink_dp) +
-  geom_hline(yintercept = 0, color = col_ref) +
+  geom_point(alpha = .05, color = gray_md) +
+  geom_hline(yintercept = 0, color = slate, linetype = "dashed") +
+  geom_smooth(se = FALSE, color = accent, linewidth = 1) +
   labs(x = "Valores ajustados", y = "Residuos")
 ```
 
@@ -1059,8 +1115,8 @@ usan errores estándar robustos.
 #| echo: false
 #| fig-cap: "Q-Q normal de los residuos del modelo."
 ggplot(data.frame(r = resid(m_base)), aes(sample = r)) +
-  stat_qq(alpha = .1, color = col_sky) +
-  stat_qq_line(color = col_pink_dp, linewidth = 0.8) +
+  stat_qq(alpha = .1, color = gray_md) +
+  stat_qq_line(color = accent, linewidth = 0.9) +
   labs(x = "Cuantiles teóricos", y = "Residuos")
 ```
 
@@ -1085,8 +1141,10 @@ inferencia se mantiene válida.
 #| fig-cap: "Distancia de Cook por observación (ninguna se acerca al umbral 1)."
 ck <- cooks.distance(m_base)
 ggplot(data.frame(i = seq_along(ck), ck = ck), aes(i, ck)) +
-  geom_segment(aes(xend = i, yend = 0), alpha = .4, color = col_blue_dp) +
-  labs(x = "Observación", y = "Distancia de Cook")
+  geom_segment(aes(xend = i, yend = 0), alpha = .5, color = slate) +
+  labs(title = "Ninguna observación es influyente sobre el ajuste",
+       subtitle = "Distancia de Cook por observación · el umbral de alarma (1) queda muy lejos",
+       x = "Observación", y = "Distancia de Cook")
 ```
 
 ```{r diag-influ-tab}
@@ -1178,21 +1236,25 @@ data.frame(
 
 ```{r final-forest}
 #| echo: false
-#| fig-height: 6
-#| fig-cap: "Efecto porcentual sobre el salario con IC 95 % robustos. En anaranjado, los efectos no significativos (su intervalo contiene el 0)."
+#| fig-height: 6.2
+#| fig-cap: "Efecto porcentual sobre el salario con IC 95 % robustos. En gris, los efectos no significativos (su intervalo contiene el 0)."
 sig <- !(ci[filas, 1] < 0 & ci[filas, 2] > 0)
+efec <- 100 * (exp(b[filas]) - 1)
+dir  <- ifelse(!sig, "No significativo",
+        ifelse(efec > 0, "Sube el salario", "Baja el salario"))
 data.frame(
   variable = factor(nombres, levels = rev(nombres)),
-  efecto = 100 * (exp(b[filas]) - 1),
+  efecto = efec,
   low    = 100 * (exp(ci[filas, 1]) - 1),
   high   = 100 * (exp(ci[filas, 2]) - 1),
-  Significatividad = factor(ifelse(sig, "Significativo", "No significativo"),
-                            levels = c("Significativo", "No significativo"))) |>
-  ggplot(aes(efecto, variable, color = Significatividad)) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = col_ref) +
-  geom_pointrange(aes(xmin = low, xmax = high)) +
-  scale_color_manual(values = pal_sig) +
-  labs(x = "Efecto sobre el salario (%)", y = NULL)
+  Dirección = factor(dir, levels = c("Sube el salario", "Baja el salario", "No significativo"))) |>
+  ggplot(aes(efecto, variable, color = Dirección)) +
+  geom_vline(xintercept = 0, linewidth = 0.6, color = slate) +
+  geom_pointrange(aes(xmin = low, xmax = high), linewidth = 0.7, fatten = 3) +
+  scale_color_manual(values = pal_dir) +
+  labs(title = "Qué sube y qué baja el salario, a igualdad de lo demás",
+       subtitle = "Teal: aumenta el salario · coral: lo reduce · gris: sin efecto significativo",
+       x = "Efecto sobre el salario (%)", y = NULL)
 ```
 
 El gráfico permite leer de un vistazo la magnitud, la precisión y la
@@ -1280,19 +1342,22 @@ data.frame(Variable = nombres_g, OR = or[filas, 1],
 
 ```{r log-or-forest}
 #| echo: false
-#| fig-height: 5.5
-#| fig-cap: "Razones de odds de informalidad con IC 95 % (escala logarítmica). En anaranjado, los efectos no significativos (su intervalo contiene el 1)."
+#| fig-height: 5.7
+#| fig-cap: "Razones de odds de informalidad con IC 95 % (escala logarítmica). En gris, los efectos no significativos (su intervalo contiene el 1)."
 sig_g <- !(or[filas, 2] < 1 & or[filas, 3] > 1)
+dir_g <- ifelse(!sig_g, "No significativo",
+         ifelse(or[filas, 1] > 1, "Más informalidad", "Menos informalidad"))
 data.frame(variable = factor(nombres_g, levels = rev(nombres_g)),
            OR = or[filas, 1], low = or[filas, 2], high = or[filas, 3],
-           Significatividad = factor(ifelse(sig_g, "Significativo", "No significativo"),
-                                     levels = c("Significativo", "No significativo"))) |>
-  ggplot(aes(OR, variable, color = Significatividad)) +
-  geom_vline(xintercept = 1, linetype = "dashed", color = col_ref) +
-  geom_pointrange(aes(xmin = low, xmax = high)) +
+           Dirección = factor(dir_g, levels = c("Más informalidad", "Menos informalidad", "No significativo"))) |>
+  ggplot(aes(OR, variable, color = Dirección)) +
+  geom_vline(xintercept = 1, linewidth = 0.6, color = slate) +
+  geom_pointrange(aes(xmin = low, xmax = high), linewidth = 0.7, fatten = 3) +
   scale_x_log10() +
-  scale_color_manual(values = pal_sig) +
-  labs(x = "Razón de odds (escala log)", y = NULL)
+  scale_color_manual(values = pal_dir) +
+  labs(title = "Qué aumenta y qué reduce la chance de ser informal",
+       subtitle = "El tamaño del establecimiento y la educación son los factores dominantes",
+       x = "Razón de odds (escala log)", y = NULL)
 ```
 
 La edad entra de forma **cuadrática**, así que su razón de odds "por año" no es
@@ -1312,10 +1377,15 @@ prob_edad <- sapply(edades, function(a) {
   mean(predict(g, d, type = "response"))
 })
 ggplot(data.frame(edad = edades, prob = prob_edad), aes(edad, prob)) +
-  geom_line(color = col_blue_dp, linewidth = 1) +
-  geom_vline(xintercept = edad_min, linetype = "dashed", color = col_ref) +
+  geom_line(color = accent, linewidth = 1.3) +
+  geom_vline(xintercept = edad_min, linetype = "dashed", color = slate) +
+  annotate("label", x = edad_min, y = max(prob_edad) * 0.55,
+           label = paste0("Mínimo ≈ ", edad_min, " años"),
+           color = slate, fill = "white", label.size = 0, fontface = "bold", size = 3.6) +
   scale_y_continuous(labels = scales::percent) +
-  labs(x = "Edad (años)", y = "Probabilidad de informalidad")
+  labs(title = "Los jóvenes son mucho más informales; la informalidad baja con la edad",
+       subtitle = "Probabilidad estimada de informalidad por edad (resto de características promediado)",
+       x = "Edad (años)", y = "Probabilidad de informalidad")
 ```
 
 Interpretando **solo los efectos significativos**:
@@ -1438,11 +1508,15 @@ posibles; el área bajo la curva (AUC) mide la capacidad de discriminación:
 ```{r pred-roc}
 #| echo: false
 #| fig-cap: "Curva ROC del modelo de informalidad."
-ggroc(roc_is, color = col_blue_dp, linewidth = 1) +
-  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = col_ref) +
-  annotate("text", x = 0.25, y = 0.15,
-           label = sprintf("AUC = %.3f", as.numeric(auc(roc_is)))) +
-  labs(x = "Especificidad", y = "Sensibilidad")
+ggroc(roc_is, color = accent2, linewidth = 1.3) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = gray_md) +
+  annotate("label", x = 0.30, y = 0.18,
+           label = sprintf("AUC = %.3f", as.numeric(auc(roc_is))),
+           color = accent2, fill = "white", label.size = 0,
+           fontface = "bold", size = 4.6) +
+  labs(title = "El modelo distingue bien a formales de informales",
+       subtitle = "Curva ROC · cuanto más se aleja de la diagonal gris, mejor la discriminación",
+       x = "Especificidad", y = "Sensibilidad")
 ```
 
 El **AUC ≈ `r sprintf("%.2f", as.numeric(auc(roc_is)))`** indica una **buena
