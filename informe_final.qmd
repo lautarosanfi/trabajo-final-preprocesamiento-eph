@@ -151,7 +151,7 @@ tribble(
   "sexo", "Categórica binaria", "Predictora", "Sexo registrado (Varón / Mujer)",
   "tamano_estab", "Categórica (4 niveles)", "Predictora", "Tamaño del establecimiento",
   "region", "Categórica (6 niveles)", "Predictora", "Región del país",
-  "sector", "Categórica (12 ramas)", "Exploratoria", "Rama de actividad (clasificación CAES-EPH)",
+  "sector", "Categórica (12 ramas)", "Auxiliar (donante de imputación)", "Rama de actividad (clasificación CAES-EPH)",
   "horas", "Numérica", "Auxiliar", "Horas semanales trabajadas (definen el salario horario)"
 ) |>
   tabla(cap = "Variables de la base analítica.")
@@ -180,18 +180,53 @@ Una distinción central es que el código `-9` (la persona **no quiso o no supo
 responder** su ingreso) **no es lo mismo** que el `0` (la persona **declara no
 haber percibido ingreso** en el período):
 
-- **`P21 == -9` (no respuesta):** es un **faltante genuino**. Al comparar las
-  características observables de quienes responden y quienes no (edad, sexo, nivel
-  educativo, horas), resultan casi idénticas, de modo que no se ve una dependencia
-  con lo observado. Aun así, no puede descartarse que quienes más ganan tiendan a
-  no declarar (un faltante no aleatorio), lo que se retoma en las limitaciones.
-  Como el ingreso es la **variable respuesta**, no corresponde imputarlo: se lo
-  trata por **análisis de casos completos**, es decir, se excluyen esos casos.
+- **`P21 == -9` (no respuesta):** es un **faltante genuino**. Como el ingreso es la
+  **variable respuesta**, no corresponde imputarlo: se lo trata por **análisis de
+  casos completos**, es decir, se excluyen esos casos.
 - **`P21 == 0` (sin ingreso):** **no es un faltante.** Son ocupados que declararon
   no percibir ingreso laboral en el período (en general con muy poca antigüedad en
   el puesto). Constituyen **otra población**, ajena a una ecuación de salarios
   (además su salario horario sería 0, indefinido en logaritmo), así que se los
   **excluye**.
+
+Antes de excluir a quienes no responden conviene preguntarse por el **mecanismo de
+pérdida**: si la no respuesta dependiera de las características observadas
+(faltante MAR), el análisis de casos completos podría sesgar las estimaciones. Para
+evaluarlo se comparan las **características observables** de quienes responden y
+quienes no, tal como sugiere la bibliografía cuando se sospecha un mecanismo de
+pérdida:
+
+```{r faltantes-mecanismo}
+#| echo: false
+#| cache: true
+cruda |>
+  filter(ESTADO == 1, CAT_OCUP == 3, CH06 >= 18, CH06 <= 65) |>
+  mutate(
+    Grupo    = if_else(P21 == -9, "No responde", "Responde"),
+    mujer    = CH04 == 2,
+    superior = NIVEL_ED %in% c(5, 6),
+    horas_v  = if_else(PP3E_TOT %in% c(0, 999), NA_real_, PP3E_TOT)
+  ) |>
+  group_by(Grupo) |>
+  summarise(
+    `Casos`            = n(),
+    `Edad media`       = mean(CH06),
+    `% Mujer`          = 100 * mean(mujer),
+    `% Con superior`   = 100 * mean(superior),
+    `Horas semanales`  = mean(horas_v, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  tabla(cap = "Características observables de quienes responden y no responden el ingreso (asalariados de 18 a 65 años).",
+        digits = 1)
+```
+
+Los grupos resultan **muy parecidos** en edad, composición por sexo, nivel
+educativo y horas trabajadas: la no respuesta no muestra una dependencia clara con
+lo observado, lo que vuelve razonable el análisis de casos completos. Aun así, esta
+comparación solo descarta una dependencia con las variables **observadas**: no puede
+descartarse que quienes más ganan tiendan a no declarar (un faltante **no
+aleatorio**, MNAR, imposible de verificar con los propios datos), lo que se retoma
+en las limitaciones.
 
 ### Flujo de casos
 
@@ -418,13 +453,15 @@ pct_mice <- round(mean(anchos$pct), 1)
 
 Las **estimaciones puntuales** son prácticamente iguales entre métodos. La
 diferencia aparece en la **precisión**: los intervalos más angostos son los de la
-imputación simple, mientras que **MICE produce los más anchos** (alrededor de
-`r sprintf("%.0f%%", pct_mice)` más) justamente porque incorpora la incertidumbre
-de la imputación; los casos completos quedan en un punto intermedio. La diferencia
-es chica porque solo se imputa una predictora y en pocos casos; con más faltantes,
-quedarse con la imputación simple subestimaría la varianza de forma mucho más
-peligrosa. En síntesis, usar KNN para el análisis principal es razonable y no
-cambia las conclusiones, pero queda documentada la advertencia metodológica.
+**imputación simple** (KNN, missForest), que trata los valores imputados como
+observados, mientras que **MICE y los casos completos producen los más anchos**
+—MICE porque incorpora la incertidumbre de la imputación (es ~`r sprintf("%.0f%%", pct_mice)`
+más ancho que KNN), y los casos completos porque descartan observaciones y pierden
+tamaño muestral—. La diferencia es chica porque solo se imputa una predictora y en
+pocos casos; con más faltantes, quedarse con la imputación simple subestimaría la
+varianza de forma mucho más peligrosa. En síntesis, usar KNN para el análisis
+principal es razonable y no cambia las conclusiones, pero queda documentada la
+advertencia metodológica.
 
 ## Recodificación de categorías
 
@@ -794,8 +831,9 @@ do.call(rbind, lapply(names(mods), function(nm) {
   tabla(cap = "Coeficiente de 'Mujer' según los controles incluidos.", digits = 4)
 ```
 
-Sin controles, la brecha es de apenas ~3 %. **Al sumar la educación, se triplica**:
-como las mujeres de la muestra están más educadas, su mayor calificación
+Sin controles, la brecha es de apenas ~3 %. **Al sumar la educación se multiplica
+por casi cuatro** (de −3 % a ~−12 %): como las mujeres de la muestra están más
+educadas, su mayor calificación
 **enmascaraba** la brecha a nivel agregado. Es un caso de **supresión**: una
 variable (educación) correlacionada positivamente tanto con ser mujer como con el
 salario ocultaba el efecto real del sexo; al controlarla, la brecha aparece. En el
@@ -848,7 +886,12 @@ sel_aic$anova |>
 
 El único movimiento que mejora el criterio es **quitar la interacción**; después, ni
 eliminar variables ni volver a agregar la interacción mejora nada, y el algoritmo se
-detiene. Como verificación, al **quitar cada término de a uno** del modelo aditivo,
+detiene. (Los valores de AIC de esta tabla provienen de `stepAIC`/`extractAIC`, que
+omiten una constante aditiva, por lo que están en otra escala que los de la tabla
+comparativa de más abajo —calculados con `AIC()`—; lo comparable entre ambas son las
+**diferencias** entre modelos, no los valores absolutos: en las dos, el aditivo
+mejora al modelo con interacción en ~5,8 puntos). Como verificación, al **quitar cada
+término de a uno** del modelo aditivo,
 todos empeoran significativamente el ajuste, lo que confirma que **ninguna variable
 sobra**:
 
@@ -975,7 +1018,8 @@ c(Asimetría = mean(((r - mean(r)) / sd(r))^3),
   `Curtosis (exceso)` = mean(((r - mean(r)) / sd(r))^4) - 3)
 ```
 
-Los residuos son **simétricos** pero con **colas algo más pesadas** que la normal.
+Los residuos son **simétricos** (asimetría ≈ 0) pero con **colas marcadamente más
+pesadas** que la normal (exceso de curtosis ≈ 2,9).
 Un test formal rechazaría la normalidad, pero con un tamaño muestral tan grande
 detecta desvíos mínimos; como hay más de diez mil observaciones, por el Teorema
 Central del Límite la distribución de los estimadores es aproximadamente normal y la
@@ -1023,8 +1067,9 @@ las predicciones ni el contraste conjunto del efecto de la edad. El resto no
 presenta multicolinealidad.
 
 **Errores estándar robustos.** Por la heterocedasticidad, se reestiman los errores
-con la corrección de White (HC1). Como muestra la tabla, son **muy parecidos** a los
-clásicos y **ninguna conclusión cambia**:
+con la corrección de White (HC1). Como muestra la tabla, son **del mismo orden** que
+los clásicos —el mayor cambio se da en *Superior completo*, donde el robusto es algo
+mayor— y **ninguna conclusión cambia**:
 
 ```{r diag-robusto}
 #| echo: false
@@ -1130,8 +1175,9 @@ de la sección siguiente).
 los chicos.
 
 **Diferencias regionales.** Tomando el GBA como referencia, el **NOA, NEA y Cuyo
-pagan menos** (entre ~17 % y ~24 %), mientras que la **Patagonia paga ~27 % más**,
-consistente con su mayor costo de vida y su estructura productiva.
+pagan menos** (entre ~17 % y ~24 %) y la **Pampeana** algo menos (~5 %), mientras que
+la **Patagonia paga ~27 % más**, consistente con su mayor costo de vida y su
+estructura productiva.
 
 **En términos del problema.** El modelo cumple el primer objetivo: confirma
 **retornos crecientes a la educación**, un **perfil cóncavo de edad**, y señala como
@@ -1381,7 +1427,11 @@ una concordancia moderada (Kappa ≈ 0,57).
 sobreajuste— se aplica **validación cruzada estratificada de 10 folds**. Lo
 importante es que la **imputación del tamaño se rehace dentro de cada fold** (usando
 solo el conjunto de entrenamiento y sin la variable `informal` como donante), de
-modo de no filtrar información hacia la predicción:
+modo de no filtrar información hacia la predicción. Para que la imputación se ajuste
+y aplique limpiamente dentro de cada partición se usa aquí un modelo de **regresión
+multinomial** sobre los donantes (en lugar del KNN del análisis principal); como se
+vio antes, la elección del método casi no mueve la distribución del tamaño, así que
+esto no condiciona los resultados:
 
 ```{r pred-cv-tabla}
 #| echo: false
