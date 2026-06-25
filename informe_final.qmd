@@ -1,7 +1,7 @@
 ---
 title: "Determinantes del salario y de la informalidad laboral en Argentina"
 subtitle: "Trabajo Final — Pre-procesamiento de datos"
-author: "Lautaro Sanfilippo"
+author: "Lautaro Sanfilippo y Bernardo Di Rienzo"
 date: today
 lang: es
 format:
