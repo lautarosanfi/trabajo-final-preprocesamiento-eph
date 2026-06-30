@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Determinantes del salario y de la informalidad — Presentación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#3A3F55; --charcoal:#525871; --slate:#8A90A6; --gray-md:#B4B9C9;
+  --gray-lt:#DCE0EA; --gray-pl:#F1F3F9; --grid:#EEF0F7; --paper:#FFFFFF;
+  --celeste:#8FBEE0; --rosa:#EDA9BE; --menta:#84C9AE; --durazno:#EFA48A;
+  --lavanda:#A89BD6; --azul:#A2D2FF; --accent:#7E78C2; --accent-soft:#B7AEE2;
+  --celeste-s:#C2DDF0; --rosa-s:#F6CEDA; --menta-s:#BCE3D3; --durazno-s:#F7CFBE;
+  --sans:"Inter","Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
+  --head:"Plus Jakarta Sans","Inter","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans); color:var(--charcoal); background:#E9ECF4;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+/* ---------- Deck ---------- */
+#deck{position:fixed;inset:0;overflow:hidden}
+.slide{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  padding:62px 84px 70px; background:var(--paper);
+  animation:fade .45s ease;
+}
+.slide.active{display:flex}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.slide.center{justify-content:center;align-items:flex-start}
+
+/* ---------- Typography ---------- */
+.kicker{font-family:var(--head);text-transform:uppercase;letter-spacing:2px;
+  font-size:.72rem;font-weight:700;color:var(--accent);margin-bottom:14px;display:flex;
+  align-items:center;gap:10px}
+.kicker .num{background:var(--accent);color:#fff;border-radius:6px;padding:2px 8px;font-size:.7rem}
+h1.title{font-family:var(--head);font-weight:800;font-size:3.1rem;line-height:1.08;
+  letter-spacing:-1px;color:var(--ink)}
+h2{font-family:var(--head);font-weight:800;font-size:2.05rem;line-height:1.12;
+  letter-spacing:-.5px;color:var(--ink);margin-bottom:6px}
+.sub{font-size:1.05rem;color:var(--slate);margin-bottom:26px;font-weight:500;max-width:60ch}
+p{font-size:1.04rem;line-height:1.62;color:var(--charcoal)}
+strong{color:var(--ink);font-weight:700}
+.accent-bar{width:78px;height:6px;border-radius:6px;margin-bottom:26px;
+  background:linear-gradient(90deg,var(--celeste) 0%,var(--lavanda) 50%,var(--rosa) 100%)}
+
+/* ---------- Layout helpers ---------- */
+.body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:42px;align-items:center}
+.cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.gap-list{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.row{display:flex;gap:22px;align-items:stretch}
+
+/* ---------- Cards / callouts ---------- */
+.card{background:var(--gray-pl);border-radius:16px;padding:22px 24px;border:1px solid #EBEEF6}
+.card h3{font-family:var(--head);font-size:1.02rem;color:var(--ink);margin-bottom:8px;font-weight:700}
+.card p{font-size:.96rem;line-height:1.5}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;
+  font-size:.82rem;font-weight:600;background:#fff;border:1px solid var(--gray-lt);color:var(--charcoal)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat .big{font-family:var(--head);font-weight:800;font-size:2.7rem;line-height:1;color:var(--ink)}
+.stat .lab{font-size:.92rem;color:var(--slate)}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px}
+.statbox{background:var(--gray-pl);border-radius:14px;padding:20px;border:1px solid #EBEEF6;text-align:center}
+.statbox .big{font-family:var(--head);font-weight:800;font-size:2.4rem;color:var(--ink);line-height:1}
+.statbox .lab{font-size:.84rem;color:var(--slate);margin-top:8px;line-height:1.35}
+.lead{font-size:1.16rem;line-height:1.6;color:var(--charcoal);max-width:58ch}
+ul.clean{list-style:none;display:flex;flex-direction:column;gap:13px;margin-top:4px}
+ul.clean li{position:relative;padding-left:28px;font-size:1.02rem;line-height:1.5;color:var(--charcoal)}
+ul.clean li::before{content:"";position:absolute;left:0;top:9px;width:11px;height:11px;border-radius:50%;
+  background:var(--accent-soft)}
+ul.clean li.good::before{background:var(--menta)}
+ul.clean li.bad::before{background:var(--durazno)}
+ul.clean li.neu::before{background:var(--celeste)}
+.note{font-size:.86rem;color:var(--gray-md);margin-top:18px;font-style:italic}
+
+/* ---------- Tables ---------- */
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{padding:10px 14px;text-align:left}
+th{font-family:var(--head);font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--slate);border-bottom:2px solid var(--lavanda);font-weight:700}
+td{border-bottom:1px solid var(--gray-lt);color:var(--charcoal)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+.tag{font-size:.74rem;font-weight:700;padding:2px 9px;border-radius:6px}
+.tag.resp{background:var(--celeste-s);color:#2E5A78}
+.tag.pred{background:var(--menta-s);color:#1F6B4F}
+.tag.aux{background:var(--gray-lt);color:var(--charcoal)}
+
+/* ---------- Mini bar charts ---------- */
+.bars{display:flex;flex-direction:column;gap:11px;margin-top:6px}
+.bar-row{display:grid;grid-template-columns:170px 1fr 56px;align-items:center;gap:12px}
+.bar-row .bl{font-size:.9rem;color:var(--charcoal);text-align:right}
+.bar-track{background:var(--gray-pl);border-radius:7px;height:22px;overflow:hidden}
+.bar-fill{height:100%;border-radius:7px;display:block}
+.bar-val{font-size:.86rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ---------- Flow ---------- */
+.flow{display:flex;flex-direction:column;gap:9px}
+.flow-row{display:grid;grid-template-columns:1fr 120px;align-items:center;gap:14px;
+  background:var(--gray-pl);border-radius:11px;padding:11px 18px;border:1px solid #EBEEF6}
+.flow-row.final{background:var(--menta-s);border-color:var(--menta)}
+.flow-row .fl{font-size:.96rem;color:var(--charcoal)}
+.flow-row .fn{text-align:right;font-family:var(--head);font-weight:800;font-size:1.05rem;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.flow-row.minus .fn{color:var(--durazno)}
+
+/* ---------- Quote / emphasis box ---------- */
+.emph{background:linear-gradient(180deg,rgba(168,155,214,.10),rgba(168,155,214,.04));
+  border-left:4px solid var(--accent-soft);border-radius:0 14px 14px 0;padding:20px 26px;
+  font-size:1.1rem;line-height:1.55;color:var(--ink)}
+.emph strong{color:var(--accent)}
+
+/* ---------- ROC mini ---------- */
+.roc-wrap{display:flex;align-items:center;gap:30px}
+
+/* ---------- Real figures ---------- */
+.fig{border-radius:12px;border:1px solid var(--gray-lt);background:#fff;
+  max-width:100%;max-height:60vh;object-fit:contain;display:block;margin:0 auto;
+  box-shadow:0 8px 28px rgba(58,63,85,.08)}
+.fig.tall{max-height:64vh}
+.fig-cap{font-size:.8rem;color:var(--gray-md);text-align:center;margin-top:10px;font-style:italic}
+.fig-wrap{display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;min-height:0}
+.fig-side{display:flex;flex-direction:column;justify-content:center;gap:14px}
+
+/* ---------- Nav / chrome ---------- */
+#progress{position:fixed;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--celeste),var(--lavanda),var(--rosa));
+  z-index:50;transition:width .3s ease}
+#counter{position:fixed;bottom:20px;right:26px;z-index:50;font-size:.82rem;color:var(--slate);
+  font-variant-numeric:tabular-nums;font-weight:600;background:rgba(255,255,255,.8);
+  padding:5px 12px;border-radius:999px;border:1px solid var(--gray-lt)}
+#sectiontag{position:fixed;bottom:20px;left:26px;z-index:50;font-size:.76rem;color:var(--gray-md);
+  font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.nav-hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;
+  font-size:.74rem;color:var(--gray-md);display:flex;gap:8px;align-items:center}
+.kbd{border:1px solid var(--gray-lt);border-radius:5px;padding:1px 7px;font-size:.72rem;background:#fff}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-size:.86rem;color:var(--slate)}
+
+@media print{
+  body{overflow:visible}
+  .slide{display:flex!important;position:relative;inset:auto;page-break-after:always;height:100vh;animation:none}
+  #progress,#counter,#sectiontag,.nav-hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="deck">
+
+<!-- 1 · PORTADA -->
+<section class="slide active center">
+  <div class="accent-bar"></div>
+  <div class="kicker">Taller de Pre-procesamiento de Datos · Trabajo Final</div>
+  <h1 class="title">Determinantes del salario y de<br>la informalidad laboral en Argentina</h1>
+  <p class="sub" style="margin-top:22px">Una mirada a los microdatos de la Encuesta Permanente de Hogares (EPH · INDEC)
+    a través de un modelo de regresión lineal y uno logístico.</p>
+  <div class="row" style="margin-top:18px;gap:14px">
+    <span class="pill"><span class="dot" style="background:var(--celeste)"></span> Regresión lineal · salario</span>
+    <span class="pill"><span class="dot" style="background:var(--durazno)"></span> Regresión logística · informalidad</span>
+    <span class="pill"><span class="dot" style="background:var(--menta)"></span> EPH 4.º trim. 2025</span>
+  </div>
+  <p style="margin-top:40px;color:var(--slate);font-weight:600">Lautaro Sanfilippo · Bernardo Di Rienzo</p>
+</section>
+
+<!-- 2 · EL PROBLEMA -->
+<section class="slide">
+  <div class="kicker"><span class="num">01</span> El problema</div>
+  <h2>Dos preguntas sobre el mercado laboral</h2>
+  <p class="sub">El mercado argentino combina fuerte heterogeneidad salarial con alta informalidad.
+     Queremos entender qué hay detrás de cada una.</p>
+  <div class="body">
+    <div class="cols">
+      <div class="card" style="background:var(--celeste-s);border-color:var(--celeste)">
+        <h3>¿Qué determina el salario?</h3>
+        <p>Regresión <strong>lineal</strong> del (log) salario horario: retornos a la educación,
+           perfil de edad, brecha de género, penalización por informalidad, prima por tamaño y región.</p>
+      </div>
+      <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)">
+        <h3>¿Qué determina la informalidad?</h3>
+        <p>Regresión <strong>logística</strong> de la probabilidad de tener un empleo no registrado,
+           y qué tan bien podemos predecirla.</p>
+      </div>
+    </div>
+    <div class="emph" style="margin-top:30px">
+      La <strong>informalidad</strong> cumple un <strong>doble rol</strong>: es la <em>variable a explicar</em>
+      en el modelo logístico y, a la vez, una <em>variable explicativa</em> del salario —se espera que,
+      a igualdad de todo lo demás, el trabajador informal gane menos—.
+    </div>
+  </div>
+</section>
+
+<!-- 3 · LOS DATOS -->
+<section class="slide">
+  <div class="kicker"><span class="num">02</span> Los datos</div>
+  <h2>Fuente y población de estudio</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <ul class="clean">
+          <li class="neu"><strong>Encuesta Permanente de Hogares (EPH)</strong> del INDEC: 31 aglomerados urbanos, microdatos abiertos y trimestrales.</li>
+          <li class="neu">Base de individuos del <strong>4.º trimestre de 2025</strong>, descargada con el paquete <code>eph</code>.</li>
+          <li class="good">El informe es <strong>reproducible de punta a punta</strong>: descarga, limpieza y modelos corren en el mismo documento.</li>
+        </ul>
+        <p class="note">Población objetivo: personas <strong>asalariadas ocupadas de 18 a 65 años</strong>.</p>
+      </div>
+      <div>
+        <div class="card">
+          <h3>¿Por qué ese recorte?</h3>
+          <p>El <strong>salario horario</strong> solo existe para quien percibe remuneración, y la
+             <strong>informalidad</strong> —medida por el descuento jubilatorio— es un concepto propio
+             del empleo asalariado. El rango etario deja afuera a menores y a personas en edad jubilatoria.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · LAS VARIABLES -->
+<section class="slide">
+  <div class="kicker"><span class="num">02</span> Los datos</div>
+  <h2>Las variables de la base analítica</h2>
+  <div class="body">
+    <table>
+      <thead><tr><th>Variable</th><th>Tipo</th><th>Rol</th><th>Definición</th></tr></thead>
+      <tbody>
+        <tr><td><strong>salario_horario</strong></td><td>Numérica continua</td><td><span class="tag resp">Respuesta lineal</span></td><td>P21 / (horas × 4,33)</td></tr>
+        <tr><td><strong>log_salario</strong></td><td>Numérica continua</td><td><span class="tag resp">Respuesta lineal</span></td><td>Logaritmo del salario horario</td></tr>
+        <tr><td><strong>informal</strong></td><td>Categórica binaria</td><td><span class="tag resp">Resp. logística</span> <span class="tag pred">Pred. lineal</span></td><td>Empleo no registrado</td></tr>
+        <tr><td><strong>nivel_ed</strong></td><td>Categórica (6)</td><td><span class="tag pred">Predictora</span></td><td>Máximo nivel educativo</td></tr>
+        <tr><td><strong>edad</strong></td><td>Numérica discreta</td><td><span class="tag pred">Predictora</span></td><td>Años (entra también al cuadrado)</td></tr>
+        <tr><td><strong>sexo</strong></td><td>Categórica binaria</td><td><span class="tag pred">Predictora</span></td><td>Varón / Mujer</td></tr>
+        <tr><td><strong>tamano_estab</strong></td><td>Categórica (4)</td><td><span class="tag pred">Predictora</span></td><td>Tamaño del establecimiento</td></tr>
+        <tr><td><strong>region</strong></td><td>Categórica (6)</td><td><span class="tag pred">Predictora</span></td><td>Región del país</td></tr>
+        <tr><td><strong>sector / horas</strong></td><td>Categórica / Numérica</td><td><span class="tag aux">Auxiliares</span></td><td>Rama de actividad · horas semanales</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 4b · PRE-PROCESAMIENTO: técnicas aplicadas (mapa consigna) -->
+<section class="slide">
+  <div class="kicker"><span class="num">03</span> Pre-procesamiento</div>
+  <h2>Las seis técnicas, y qué se hizo con cada una</h2>
+  <p class="sub">Todas las decisiones están justificadas en el informe. Los puntos clave se detallan en las
+     diapositivas siguientes.</p>
+  <div class="body">
+    <div class="cols-3">
+      <div class="card"><h3>① Datos faltantes</h3><p>Códigos −9 / 0 distinguidos; casos completos para el ingreso + imputación del tamaño (KNN, missForest, MICE).</p></div>
+      <div class="card"><h3>② Recodificación</h3><p>Educación (6 niveles), sexo, región, tamaño y sector → etiquetas legibles. <strong>nivel_ed como factor no ordenado</strong>.</p></div>
+      <div class="card"><h3>③ Variables derivadas</h3><p><strong>salario_horario</strong> = P21/(horas×4,33), <strong>log_salario</strong> y <strong>edad²</strong>.</p></div>
+      <div class="card"><h3>④ Transformaciones</h3><p><strong>Logaritmo</strong> del salario: corrige la asimetría a derecha y da lectura porcentual.</p></div>
+      <div class="card"><h3>⑤ Cambios de escala</h3><p><strong>No se estandariza</strong>: con predictoras categóricas + 1 continua los coeficientes se leen en sus unidades (sí se reservaría para penalizadas).</p></div>
+      <div class="card"><h3>⑥ Valores atípicos</h3><p><strong>No se eliminan</strong>: el log los atenúa y la distancia de Cook confirma que ninguno es influyente.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · FALTANTES: -9 vs 0 -->
+<section class="slide">
+  <div class="kicker"><span class="num">03</span> Pre-procesamiento · Datos faltantes</div>
+  <h2>Los códigos especiales no significan lo mismo</h2>
+  <p class="sub">El punto más delicado: la EPH usa números reales (−9, 0, 999…) que el software no reconoce
+     como faltantes. Tratarlos literalmente contaminaría todo.</p>
+  <div class="body">
+    <div class="cols-3">
+      <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)">
+        <h3>P21 = −9</h3>
+        <p><strong>No respuesta.</strong> Faltante genuino. Como el ingreso es la <em>respuesta</em>,
+           no se imputa → <strong>análisis de casos completos</strong> (se excluye).</p>
+      </div>
+      <div class="card" style="background:var(--gray-pl)">
+        <h3>P21 = 0</h3>
+        <p><strong>Sin ingreso.</strong> No es un faltante: es otra población (su log-salario sería
+           indefinido). <strong>Se excluye.</strong></p>
+      </div>
+      <div class="card" style="background:var(--celeste-s);border-color:var(--celeste)">
+        <h3>Tamaño = 0</h3>
+        <p><strong>Servicio doméstico.</strong> Tampoco es faltante: se trata como
+           categoría propia → <strong>"Casa particular"</strong>.</p>
+      </div>
+    </div>
+    <div class="emph" style="margin-top:26px">
+      Antes de excluir verificamos el <strong>mecanismo de pérdida</strong>: quienes responden y quienes no
+      son <strong>muy parecidos</strong> en edad, sexo, educación y horas → la no respuesta no depende de
+      lo observado, lo que vuelve razonable el análisis de casos completos.
+    </div>
+  </div>
+</section>
+
+<!-- 6 · FLUJO DE CASOS -->
+<section class="slide">
+  <div class="kicker"><span class="num">03</span> Pre-procesamiento · Flujo de casos</div>
+  <h2>De la base cruda a la base analítica</h2>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.25fr 1fr">
+      <div class="flow">
+        <div class="flow-row"><span class="fl">Asalariados ocupados de 18 a 65 años</span><span class="fn">punto de partida</span></div>
+        <div class="flow-row minus"><span class="fl">(−) No responde el ingreso (−9)</span><span class="fn">≈ 39 %</span></div>
+        <div class="flow-row minus"><span class="fl">(−) Declara no percibir ingreso (0)</span><span class="fn">−</span></div>
+        <div class="flow-row minus"><span class="fl">(−) Horas no válidas (0 / 999 / faltante)</span><span class="fn">−</span></div>
+        <div class="flow-row final"><span class="fl"><strong>Base analítica final</strong></span><span class="fn">10.863</span></div>
+      </div>
+      <div>
+        <div class="statbox" style="text-align:left;background:var(--durazno-s);border-color:var(--durazno)">
+          <div class="big">≈ 39 %</div>
+          <div class="lab">de no respuesta de ingresos — un dato que pesa al interpretar el modelo de salarios
+            (se retoma en limitaciones).</div>
+        </div>
+        <p class="note">Tras la limpieza, la <strong>única</strong> variable con faltantes es el
+          <strong>tamaño del establecimiento</strong>, que se imputa a continuación.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · IMPUTACIÓN -->
+<section class="slide">
+  <div class="kicker"><span class="num">03</span> Pre-procesamiento · Imputación</div>
+  <h2>Tamaño del establecimiento: tres métodos</h2>
+  <p class="sub">El código 99 (no responde) se redujo con la <strong>pregunta de recupero</strong> de la EPH.
+     El resto se imputa con tres métodos para mostrar que la elección no condiciona los resultados.</p>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <ul class="clean">
+          <li class="neu"><strong>KNN (k=5)</strong>, <strong>missForest</strong> e <strong>imputación múltiple MICE (m=5)</strong>, usando como donantes las variables completas (incluido el salario).</li>
+          <li class="good">Las tres distribuciones imputadas son <strong>estables entre sí</strong> y parecidas a la observada.</li>
+          <li class="neu">Se adopta <strong>KNN</strong> para el análisis principal.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Efecto sobre la inferencia</h3>
+        <p>La imputación simple <strong>subestima la varianza</strong> (intervalos demasiado angostos).
+           <strong>MICE</strong> corrige con las reglas de Rubin: sus IC son ~<strong>2 % más anchos</strong>
+           que KNN porque incorporan la incertidumbre de imputar. Las estimaciones puntuales casi no cambian.</p>
+      </div>
+    </div>
+    <p class="note">En la validación cruzada, la imputación se <strong>rehace dentro de cada fold</strong>
+       para no filtrar información hacia la predicción.</p>
+  </div>
+</section>
+
+<!-- 8 · TRANSFORMACIÓN LOG -->
+<section class="slide">
+  <div class="kicker"><span class="num">03</span> Pre-procesamiento · Transformación</div>
+  <h2>El salario horario y su logaritmo</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <div class="card" style="margin-bottom:18px">
+          <h3>Variable derivada</h3>
+          <p style="font-size:1.05rem">salario_horario = <strong>P21 / (PP3E_TOT × 4,33)</strong></p>
+          <p class="note" style="margin-top:8px">4,33 ≈ semanas promedio por mes.</p>
+        </div>
+        <p>El salario tiene la típica <strong>asimetría a derecha</strong> de los ingresos: muchos valores
+           bajos y una cola larga de altos. El <strong>logaritmo</strong> la corrige.</p>
+      </div>
+      <div class="fig-wrap">
+        <img class="fig" src="img/log_transform.png" alt="Distribución del salario en escala original y logarítmica">
+        <div class="fig-cap">La asimetría pasa de ≈ 4 a casi 0; en escala log la distribución es casi simétrica.</div>
+      </div>
+    </div>
+    <p class="note">Con n &gt; 10.000, los tests formales de normalidad rechazan ante desvíos mínimos →
+       la evaluación se apoya en los gráficos y las medidas de forma.</p>
+  </div>
+</section>
+
+<!-- 9 · ATÍPICOS -->
+<section class="slide">
+  <div class="kicker"><span class="num">03</span> Pre-procesamiento · Atípicos</div>
+  <h2>Valores atípicos: no se eliminan</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <p>Muchos salarios horarios altísimos son un <strong>artefacto del denominador</strong>: surgen de
+           muy pocas horas declaradas (que inflan el cociente), no de ingresos extraordinarios.</p>
+        <ul class="clean" style="margin-top:18px">
+          <li class="neu">No hay certeza de que sean errores → no se borran por ser atípicos.</li>
+          <li class="good">El tratamiento principal es la <strong>transformación logarítmica</strong>, que los comprime.</li>
+          <li class="good">El diagnóstico posterior (distancia de Cook) confirma que <strong>ninguno distorsiona el ajuste</strong>.</li>
+        </ul>
+      </div>
+      <div class="card" style="background:var(--menta-s);border-color:var(--menta)">
+        <h3>Decisión</h3>
+        <p>Se <strong>conservan</strong> las observaciones. El log atenúa su influencia y el impacto sobre
+           el ajuste se evalúa formalmente en el diagnóstico del modelo. Solo con evidencia de influencia
+           desmedida se consideraría un tratamiento adicional.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · EDA informalidad + educación -->
+<section class="slide">
+  <div class="kicker"><span class="num">04</span> Análisis exploratorio</div>
+  <h2>Primeras señales en los datos</h2>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <div class="statbox" style="text-align:left;background:var(--durazno-s);border-color:var(--durazno);margin-bottom:18px">
+          <div class="big">&gt; 1 / 3</div>
+          <div class="lab">de los asalariados trabaja en la <strong>informalidad</strong> (empleo no registrado).</div>
+        </div>
+        <p>El salario crece de forma <strong>monótona</strong> con el nivel educativo → anticipa
+           <strong>retornos positivos a la educación</strong>.</p>
+      </div>
+      <div>
+        <p style="font-weight:600;color:var(--ink);margin-bottom:10px">Salario (log) mediano por nivel educativo</p>
+        <div class="bars">
+          <div class="bar-row"><span class="bl">Primario inc.</span><div class="bar-track"><span class="bar-fill" style="width:42%;background:var(--azul)"></span></div><span class="bar-val">menor</span></div>
+          <div class="bar-row"><span class="bl">Secundario inc.</span><div class="bar-track"><span class="bar-fill" style="width:55%;background:var(--azul)"></span></div><span class="bar-val">↑</span></div>
+          <div class="bar-row"><span class="bl">Secundario comp.</span><div class="bar-track"><span class="bar-fill" style="width:68%;background:var(--azul)"></span></div><span class="bar-val">↑</span></div>
+          <div class="bar-row"><span class="bl">Superior inc.</span><div class="bar-track"><span class="bar-fill" style="width:80%;background:var(--azul)"></span></div><span class="bar-val">↑</span></div>
+          <div class="bar-row"><span class="bl">Superior comp.</span><div class="bar-track"><span class="bar-fill" style="width:96%;background:var(--celeste)"></span></div><span class="bar-val">mayor</span></div>
+        </div>
+        <p class="note">Cada escalón educativo se asocia a un salario más alto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 · LA PARADOJA DE GÉNERO -->
+<section class="slide">
+  <div class="kicker"><span class="num">04</span> Análisis exploratorio · Hallazgo clave</div>
+  <h2>La paradoja de la brecha de género</h2>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.15fr .85fr">
+      <div class="fig-wrap">
+        <img class="fig" src="img/brecha_genero.png" alt="Salario por nivel educativo y sexo">
+        <div class="fig-cap">A igual nivel educativo, los varones (celeste) ganan más que las mujeres (rosa).</div>
+      </div>
+      <div class="fig-side">
+        <div class="card" style="background:var(--gray-pl)">
+          <h3>A nivel marginal</h3>
+          <p>Mirando el total, la brecha se ve <strong>casi nula</strong>: las medianas por sexo casi coinciden.</p>
+        </div>
+        <div class="card" style="background:var(--rosa-s);border-color:var(--rosa)">
+          <h3>Al condicionar por educación</h3>
+          <p>Las mujeres están <strong>más educadas</strong>; esa calificación <strong>enmascaraba</strong>
+             la brecha. Es un caso de <strong>supresión</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 · EDA edad + tamaño -->
+<section class="slide">
+  <div class="kicker"><span class="num">04</span> Análisis exploratorio</div>
+  <h2>Edad cóncava y prima por tamaño</h2>
+  <div class="body">
+    <div class="cols">
+      <div class="fig-wrap">
+        <img class="fig" src="img/edad_loess.png" alt="Salario según edad con suavizado loess">
+        <div class="fig-cap">Perfil cóncavo: sube con la experiencia y se estanca hacia los ~57 años → justifica <strong>edad²</strong>.</div>
+      </div>
+      <div>
+        <h3 style="font-family:var(--head);color:var(--ink);margin-bottom:10px">A mayor tamaño, mayor salario</h3>
+        <div class="bars">
+          <div class="bar-row"><span class="bl">Casa particular</span><div class="bar-track"><span class="bar-fill" style="width:34%;background:var(--gray-md)"></span></div><span class="bar-val">mín</span></div>
+          <div class="bar-row"><span class="bl">Chico (≤5)</span><div class="bar-track"><span class="bar-fill" style="width:58%;background:var(--azul)"></span></div><span class="bar-val">ref</span></div>
+          <div class="bar-row"><span class="bl">Mediano (6–40)</span><div class="bar-track"><span class="bar-fill" style="width:74%;background:var(--azul)"></span></div><span class="bar-val">+11%</span></div>
+          <div class="bar-row"><span class="bl">Grande (&gt;40)</span><div class="bar-track"><span class="bar-fill" style="width:90%;background:var(--celeste)"></span></div><span class="bar-val">+20%</span></div>
+        </div>
+        <p class="note">La <strong>prima por tamaño</strong> del establecimiento (efectos del modelo final).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12b · EDA informalidad por grupo -->
+<section class="slide">
+  <div class="kicker"><span class="num">04</span> Análisis exploratorio</div>
+  <h2>¿Quiénes son más informales?</h2>
+  <p class="sub">La informalidad cae con la educación y con el tamaño del establecimiento — anticipa el peso
+     de estas variables en el modelo logístico.</p>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.2fr .8fr">
+      <div class="fig-wrap">
+        <img class="fig tall" src="img/tasa_informalidad.png" alt="Tasa de informalidad por nivel educativo y tamaño">
+        <div class="fig-cap">Tasa de empleo no registrado por grupo.</div>
+      </div>
+      <div class="fig-side">
+        <ul class="clean">
+          <li class="good">Baja fuerte con el <strong>nivel educativo</strong>.</li>
+          <li class="good">Mucho menor en establecimientos <strong>grandes</strong>.</li>
+          <li class="bad">Máxima en el <strong>servicio doméstico</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 · MODELO LINEAL especificación -->
+<section class="slide">
+  <div class="kicker"><span class="num">05</span> Regresión lineal</div>
+  <h2>Especificación del modelo</h2>
+  <div class="body">
+    <div class="emph" style="font-family:var(--head);font-size:1.12rem;text-align:center;line-height:1.7">
+      log(salario) = β₀ + β₁·edad + β₂·edad² + δ·mujer + θ·informal<br>
+      + γ′·educación + τ′·tamaño + ρ′·región + ε
+    </div>
+    <div class="cols" style="margin-top:30px">
+      <ul class="clean">
+        <li class="neu"><strong>mujer</strong> e <strong>informal</strong> son indicadoras (0/1).</li>
+        <li class="neu">Educación, tamaño y región entran como <strong>conjuntos de indicadoras</strong>, cada una contra una categoría de referencia.</li>
+      </ul>
+      <div class="card">
+        <h3>Lectura porcentual</h3>
+        <p>Como la respuesta es el <strong>log</strong> del salario, cada coeficiente β se traduce en un
+           cambio porcentual de <strong>(e<sup>β</sup> − 1) × 100 %</strong>, manteniendo todo lo demás constante.</p>
+      </div>
+    </div>
+    <p class="note">Referencias: Primario incompleto · Varón · Formal · Chico (hasta 5) · GBA.</p>
+  </div>
+</section>
+
+<!-- 14 · SUPRESIÓN género -->
+<section class="slide">
+  <div class="kicker"><span class="num">05</span> Regresión lineal · Supresión</div>
+  <h2>La brecha de género: del dato marginal al condicional</h2>
+  <p class="sub">El coeficiente de "Mujer" a medida que se agregan controles muestra el mecanismo de supresión.</p>
+  <div class="body">
+    <table>
+      <thead><tr><th>Especificación</th><th class="num">Efecto aprox. sobre el salario</th><th>Significativo</th></tr></thead>
+      <tbody>
+        <tr><td>Solo sexo (marginal)</td><td class="num" style="color:var(--gray-md)">≈ −3 %</td><td>apenas</td></tr>
+        <tr><td>+ educación</td><td class="num" style="color:var(--durazno);font-weight:700">≈ −12 %</td><td>sí (×4)</td></tr>
+        <tr><td>+ edad</td><td class="num" style="color:var(--durazno)">≈ −12 %</td><td>sí</td></tr>
+        <tr><td><strong>Modelo completo</strong></td><td class="num" style="color:var(--durazno);font-weight:700">≈ −10 %</td><td>sí</td></tr>
+      </tbody>
+    </table>
+    <div class="emph" style="margin-top:26px">
+      Al sumar educación, la brecha se <strong>multiplica por casi cuatro</strong>: la mayor calificación
+      femenina la <strong>enmascaraba</strong>. Es la parte de la diferencia salarial que las características
+      observadas <strong>no</strong> explican. La interacción educación × sexo <strong>no es significativa</strong>
+      → la brecha existe pero es aprox. constante entre niveles.
+    </div>
+  </div>
+</section>
+
+<!-- 15 · SELECCIÓN DE VARIABLES -->
+<section class="slide">
+  <div class="kicker"><span class="num">05</span> Regresión lineal · Selección y métodos alternativos</div>
+  <h2>¿Sobra alguna variable? No</h2>
+  <div class="body">
+    <div class="cols">
+      <div class="card">
+        <h3>Selección paso a paso (AIC y BIC)</h3>
+        <p><strong>AIC y BIC eligen el mismo modelo aditivo</strong>: retienen todas las predictoras y solo
+           descartan la interacción. El <code>drop1</code> confirma que quitar cualquier término empeora
+           significativamente el ajuste.</p>
+      </div>
+      <div class="card">
+        <h3>Regresión penalizada (Ridge / Lasso)</h3>
+        <p>El λ óptimo de Lasso es casi nulo y <strong>retiene todas las variables</strong>; el error de
+           predicción es <strong>equivalente</strong> a mínimos cuadrados. La penalización <strong>no aporta</strong>:
+           hay muchos más casos que predictoras y sin multicolinealidad relevante.</p>
+      </div>
+    </div>
+    <div class="emph" style="margin-top:26px">
+      Se adopta el <strong>modelo aditivo por mínimos cuadrados</strong> como modelo de trabajo: ninguna
+      variable sobra y los métodos alternativos no mejoran el ajuste.
+    </div>
+  </div>
+</section>
+
+<!-- 16 · DIAGNÓSTICO -->
+<section class="slide">
+  <div class="kicker"><span class="num">05</span> Regresión lineal · Diagnóstico de supuestos</div>
+  <h2>Validación de los supuestos</h2>
+  <div class="body">
+    <div class="cols-3">
+      <div class="card"><h3>Independencia</h3><p>Corte transversal (un trimestre) → sin estructura temporal.</p></div>
+      <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)"><h3>Homocedasticidad</h3><p>Breusch-Pagan <strong>rechaza</strong> → hay heterocedasticidad.</p></div>
+      <div class="card"><h3>Linealidad</h3><p>Sin curvatura, ayudada por el log y edad².</p></div>
+      <div class="card"><h3>Normalidad</h3><p>Residuos simétricos, colas algo pesadas → inocuo por el <strong>TCL</strong> (n grande).</p></div>
+      <div class="card" style="background:var(--menta-s);border-color:var(--menta)"><h3>Influyentes</h3><p><strong>Ninguna</strong>: distancia de Cook máx. muy por debajo de 1.</p></div>
+      <div class="card"><h3>Multicolinealidad</h3><p>Solo edad/edad² (esperable y benigno por construcción).</p></div>
+    </div>
+    <div class="row" style="margin-top:22px;gap:22px;align-items:center">
+      <div class="emph" style="flex:1.1;margin:0">
+        Única violación relevante: la heterocedasticidad → se corrige con <strong>errores estándar robustos (HC1)</strong>.
+        <strong>Ninguna conclusión cambia.</strong>
+      </div>
+      <div style="flex:.9;text-align:center">
+        <img class="fig" src="img/cook.png" alt="Distancia de Cook" style="max-height:24vh">
+        <div class="fig-cap">Distancia de Cook: ninguna observación influyente (umbral 1 muy lejos).</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 17 · MODELO LINEAL FINAL -->
+<section class="slide">
+  <div class="kicker"><span class="num">05</span> Regresión lineal · Modelo final</div>
+  <h2>¿Qué sube y qué baja el salario?</h2>
+  <p class="sub">Efecto porcentual sobre el salario, a igualdad de todo lo demás (IC 95 % robustos).
+     Explica ≈ <strong>39 %</strong> de la variabilidad del log-salario.</p>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.25fr .75fr;align-items:center">
+      <div class="fig-wrap">
+        <img class="fig tall" src="img/forest_salario.png" alt="Efecto porcentual sobre el salario con IC 95%">
+        <div class="fig-cap">Verde: sube el salario · coral: lo reduce · gris: sin efecto significativo.</div>
+      </div>
+      <div class="fig-side">
+        <div class="card" style="background:var(--menta-s);border-color:var(--menta)"><h3>Educación</h3><p>Retornos monótonos; +22 % secundario, +78 % superior.</p></div>
+        <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)"><h3>Informalidad</h3><p>El efecto individual <strong>más grande</strong> del modelo.</p></div>
+        <div class="card" style="background:var(--rosa-s);border-color:var(--rosa)"><h3>Brecha de género</h3><p>≈ −10 %, condicional y significativa.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 18 · LOGÍSTICA especificación + OR -->
+<section class="slide">
+  <div class="kicker"><span class="num">06</span> Regresión logística</div>
+  <h2>Modelar la probabilidad de informalidad</h2>
+  <p class="sub">Mismas predictoras que el salario, <strong>excepto el salario</strong>: la informalidad es
+     causa del salario, no al revés. Interpretación en <strong>razones de odds (OR)</strong>.</p>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.2fr .8fr;align-items:center">
+      <div class="fig-wrap">
+        <img class="fig tall" src="img/forest_or.png" alt="Razones de odds de informalidad con IC 95%">
+        <div class="fig-cap">OR &lt; 1 = menos informalidad. El tamaño y la educación son dominantes.</div>
+      </div>
+      <div class="fig-side">
+        <ul class="clean">
+          <li class="good"><strong>Tamaño grande:</strong> chance ≈ <strong>94 % menor</strong>.</li>
+          <li class="good"><strong>Superior completo:</strong> chance ≈ <strong>81 % menor</strong>.</li>
+          <li class="bad"><strong>Servicio doméstico:</strong> mayor informalidad.</li>
+        </ul>
+        <div class="card" style="background:linear-gradient(180deg,rgba(168,155,214,.14),rgba(168,155,214,.05));border-color:var(--accent-soft)">
+          <h3>El contraste con el salario</h3>
+          <p>El <strong>sexo no es significativo</strong> para la informalidad: influye en el <em>nivel
+             salarial</em> pero no en la <em>probabilidad de informalidad</em>. El modelo final lo excluye.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 18b · EDAD en la informalidad -->
+<section class="slide">
+  <div class="kicker"><span class="num">06</span> Regresión logística · Efecto de la edad</div>
+  <h2>Los jóvenes son mucho más informales</h2>
+  <p class="sub">La edad entra de forma cuadrática: su efecto se aprecia mejor en la probabilidad estimada
+     de informalidad a lo largo de la edad (promediando el resto de las características).</p>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.25fr .75fr;align-items:center">
+      <div class="fig-wrap">
+        <img class="fig tall" src="img/prob_edad.png" alt="Probabilidad de informalidad según la edad">
+        <div class="fig-cap">Probabilidad estimada de informalidad por edad.</div>
+      </div>
+      <div class="fig-side">
+        <ul class="clean">
+          <li class="bad">Informalidad <strong>máxima en los jóvenes</strong>.</li>
+          <li class="good">Decrece marcadamente con la edad hasta un <strong>mínimo</strong>, con leve repunte posterior.</li>
+          <li class="neu">Tanto <code>edad</code> como <code>edad²</code> son significativas.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 19 · CAPACIDAD PREDICTIVA -->
+<section class="slide">
+  <div class="kicker"><span class="num">06</span> Regresión logística · Capacidad predictiva</div>
+  <h2>El modelo distingue bien formales de informales</h2>
+  <div class="body">
+    <div class="roc-wrap">
+      <div style="flex-shrink:0;text-align:center">
+        <img class="fig" src="img/roc.png" alt="Curva ROC del modelo de informalidad" style="max-height:42vh;width:300px">
+        <div class="fig-cap">Curva ROC · AUC ≈ 0,86</div>
+      </div>
+      <div style="flex:1">
+        <div class="statgrid" style="grid-template-columns:1fr 1fr">
+          <div class="statbox"><div class="big">0,75</div><div class="lab">Sensibilidad — detecta 3 de cada 4 informales</div></div>
+          <div class="statbox"><div class="big">0,83</div><div class="lab">Especificidad (con corte óptimo de Youden)</div></div>
+        </div>
+        <ul class="clean" style="margin-top:18px">
+          <li class="good"><strong>Validación cruzada estratificada de 10 folds</strong>: métricas casi idénticas a las de ajuste → <strong>no hay sobreajuste</strong>.</li>
+          <li class="good">La <strong>imputación se rehace dentro de cada fold</strong> → el tratamiento de faltantes no infla el desempeño.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 20 · SÍNTESIS -->
+<section class="slide">
+  <div class="kicker"><span class="num">07</span> Síntesis</div>
+  <h2>Resultados principales</h2>
+  <div class="body">
+    <div class="cols">
+      <div class="card" style="background:var(--celeste-s);border-color:var(--celeste)">
+        <h3>Modelo de salario (lineal)</h3>
+        <ul class="clean" style="margin-top:4px">
+          <li class="good">Retornos crecientes a la educación (+22 % secundario, +78 % superior).</li>
+          <li class="neu">Perfil de edad cóncavo (máx ≈ 57 años).</li>
+          <li class="bad">Penalización por informalidad: el efecto más grande.</li>
+          <li class="bad">Brecha de género que las demás variables no explican.</li>
+        </ul>
+      </div>
+      <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)">
+        <h3>Modelo de informalidad (logística)</h3>
+        <ul class="clean" style="margin-top:4px">
+          <li class="good">Tamaño del establecimiento: determinante dominante (−94 % en grandes).</li>
+          <li class="good">La educación reduce fuertemente la informalidad.</li>
+          <li class="neu">El sexo no resulta significativo.</li>
+          <li class="good">AUC ≈ 0,86 validado: buena capacidad predictiva.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="emph" style="margin-top:24px">
+      <strong>Educación y tamaño del establecimiento</strong> son las palancas centrales de ambos fenómenos.
+      La informalidad es a la vez <strong>determinante</strong> de menores salarios y resultado <strong>predecible</strong>.
+    </div>
+  </div>
+</section>
+
+<!-- 21 · LIMITACIONES -->
+<section class="slide">
+  <div class="kicker"><span class="num">08</span> Limitaciones</div>
+  <h2>Qué leer con cautela</h2>
+  <div class="body">
+    <div class="cols-3">
+      <div class="card"><h3>Naturaleza transversal</h3><p>Asociaciones, no efectos causales. Posibles variables omitidas.</p></div>
+      <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)"><h3>No respuesta de ingresos</h3><p>≈ 39 % tratado por casos completos. Si los que más ganan no responden, hay sesgo.</p></div>
+      <div class="card" style="background:var(--durazno-s);border-color:var(--durazno)"><h3>Selección muestral</h3><p>Solo asalariados con ingreso observado → posible sesgo de selección (Heckman).</p></div>
+      <div class="card"><h3>Diseño muestral complejo</h3><p>No se usan los ponderadores de la EPH → SE algo subestimados.</p></div>
+      <div class="card"><h3>Medición de informalidad</h3><p>Definida por ausencia de descuento jubilatorio; otras definiciones podrían variar.</p></div>
+      <div class="card"><h3>Variabilidad no explicada</h3><p>El modelo de salarios explica ≈ 39 %; el resto, factores no observados.</p></div>
+    </div>
+    <p class="note">El trabajo integra el flujo completo de pre-procesamiento, análisis y modelado, llegando
+       a modelos interpretables y predictivamente adecuados, a leer a la luz de estas limitaciones.</p>
+  </div>
+</section>
+
+<!-- 22 · CIERRE -->
+<section class="slide center">
+  <div class="accent-bar"></div>
+  <div class="kicker">Gracias</div>
+  <h1 class="title" style="font-size:2.6rem">Educación y tamaño del establecimiento:<br>las palancas del salario y la informalidad</h1>
+  <p class="sub" style="margin-top:24px">Dos modelos complementarios sobre 10.863 asalariados de la EPH (4.º trim. 2025).</p>
+  <div class="row" style="margin-top:18px;gap:14px">
+    <span class="pill"><span class="dot" style="background:var(--menta)"></span> Modelo lineal · R² ≈ 0,39</span>
+    <span class="pill"><span class="dot" style="background:var(--azul)"></span> Modelo logístico · AUC ≈ 0,86</span>
+  </div>
+  <p style="margin-top:42px;color:var(--slate)">¿Preguntas?</p>
+</section>
+
+</div>
+
+<!-- chrome -->
+<div id="counter">1 / 22</div>
+<div id="sectiontag"></div>
+<div class="nav-hint"><span class="kbd">←</span><span class="kbd">→</span> para navegar · <span class="kbd">F</span> pantalla completa</div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const progress=document.getElementById('progress');
+const counter=document.getElementById('counter');
+const sectiontag=document.getElementById('sectiontag');
+let i=0;
+function show(n){
+  i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+  progress.style.width=((i+1)/slides.length*100)+'%';
+  counter.textContent=(i+1)+' / '+slides.length;
+  const k=slides[i].querySelector('.kicker');
+  sectiontag.textContent=k?k.textContent.replace(/^\d+\s*/,'').split('·')[0].trim():'';
+  location.hash=i+1;
+}
+function next(){show(i+1)} function prev(){show(i-1)}
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();next()}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}
+  else if(e.key==='Home')show(0)
+  else if(e.key==='End')show(slides.length-1)
+  else if(e.key.toLowerCase()==='f'){
+    if(!document.fullscreenElement)document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+let x0=null;
+document.addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+document.addEventListener('touchend',e=>{
+  if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;
+  if(Math.abs(dx)>50){dx<0?next():prev()}x0=null;
+},{passive:true});
+document.addEventListener('click',e=>{ if(e.target.closest('a'))return;
+  const r=e.clientX/window.innerWidth; if(r>0.62)next(); else if(r<0.38)prev(); });
+const h=parseInt(location.hash.replace('#',''));
+show(Number.isFinite(h)&&h>0?h-1:0);
+</script>
+</body>
+</html>
